@@ -11,13 +11,12 @@ char H = '_' ;
 char light = 'L' ;
 
 int main () {
-
      int x , y ;
-     printf("Please enter map size:\n");
-     scanf ("%d %d",&x,&y) ;
-     if (x<1 || y<1) {
-          printf("!EROR!\n(invalid size)\n");
-          return 0 ;
+     printf("Please enter size of map :\n ");
+     scanf("%d %d" , &x,&y );
+     while (x<1 || y<1) {
+          printf("!EROR!\n(invalid coordinates of map!)\nPlease enter again:\n");
+          scanf("%d %d" , &x,&y );
      }
      char map[maxx][maxy] ;
      for (int i=0 ; i<x ; i++ ){
@@ -43,6 +42,10 @@ int main () {
           int a , b ;
           printf("Please enter the coordinates of the runner(%d):\n",i+1);
           scanf("%d %d",&a,&b) ;
+          while (a==lightx && b==lighty) {
+               printf("!EROR!\n(same coordinates of the runner(%d) and lamp\n Please enter again coordinates of the runner(%d):\n",i+1,i+1);
+               scanf("%d %d",&a,&b) ;
+          }
           map[a][b] = runner ;
      }
 
@@ -63,44 +66,44 @@ int main () {
      int wcount ;
      printf("Please enter the number of walls:\n");
      scanf("%d",&wcount) ;
-          int wallh[maxx][maxy];
-          int wallv[maxx][maxy];
+     int wallh[maxx][maxy];
+     int wallv[maxx][maxy];
      for (int i=0 ; i<x ; i++ ) {
           for(int j=0 ; j<y ; j++) {
                wallh[i][j] = 0 ;
           }
      }
-          for (int i=0 ; i<x ; i++ ) {
-               for(int j=0 ; j<y ; j++) {
-                    wallv[i][j] = 0 ;
+     for (int i=0 ; i<x ; i++ ) {
+          for(int j=0 ; j<y ; j++) {
+               wallv[i][j] = 0 ;
+          }
+     }
+
+     for(int i=0 ; i<wcount ; i++) {
+          int a , b ;
+          char c ;
+          while (1) {
+               printf("Please enter the coordinates of the wall(%d) and (H/V):\n",i+1);
+               scanf ("%d  %d %c",&a , &b ,&c) ;
+               if (c=='H'||c == 'h'||c=='V'||c=='v') break;
+               printf("!EROR!\n(Character must be H or V. Try again.)\n");
+          }
+          if (c=='H'||c == 'h') wallh[a][b] = 1 ;
+          else wallv[a][b] = 1 ;
+     }
+     for(int i =0 ; i<x ; i++) {
+          for(int j=0 ; j<y ; j++){
+               printf("%c",map[i][j]) ;
+               if (wallv[i][j]==1){
+                    printf("%c",V) ;
                }
-          }
+               else printf(" ") ;
 
-               for(int i=0 ; i<wcount ; i++) {
-                    int a , b ;
-                    char c ;
-                    while (1) {
-                         printf("Please enter the coordinates of the wall(%d) and (H/V):\n",i+1);
-                         scanf ("%d  %d %c",&a , &b ,&c) ;
-                         if (c=='H'||c == 'h'||c=='V'||c=='v') break;
-                         printf("!EROR!\n(Character must be H or V. Try again.)\n");
-                    }
-                         if (c=='H'||c == 'h') wallh[a][b] = 1 ;
-                    else wallv[a][b] = 1 ;
-                    }
-for(int i =0 ; i<x ; i++) {
-     for(int j=0 ; j<y ; j++){
-          printf("%c",map[i][j]) ;
-          if (wallv[i][j]==1){
-               printf("%c",V) ;
-          }
-          else printf(" ") ;
-
-     } printf("\n") ;
+          } printf("\n") ;
           for(int j=0;j<x;j++) {
                if(wallh[i][j] == 1) printf("%c ",H);
                else printf("  ");
           }
-     printf("\n");
-}
-}
+          printf("\n");
+     }
+     }
