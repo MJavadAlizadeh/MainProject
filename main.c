@@ -128,7 +128,7 @@ int main () {
      int wcount ;
     printf("Please enter the number of walls:\n");
     scanf("%d",&wcount) ;
-     while(wcount<0) {
+     while(wcount<0||wcount>((x-1)*(y-1))) {
          printf("!EROR!\n(Invalid number of walls)\nPlease enter again:\n");
          scanf ("%d",&wcount) ;
      }
