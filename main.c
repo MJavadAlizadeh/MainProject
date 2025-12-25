@@ -148,7 +148,8 @@ int main () {
     int counter = 0;
     int tries = 0;
     int MAX_TRIES = wcount * 30;
-
+    X = x;
+    Y = y;
     while (counter < wcount && tries < MAX_TRIES) {
         tries++;
 
