@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <raylib.h>
+
 const int maxx = 100 ;
 const int maxy = 100 ;
 char hunter = 'H' ;
@@ -11,7 +12,47 @@ char light = 'L' ;
 char block = '.' ;
 char V = '|' ;
 char H = '_' ;
+
+//تابع DFS
+int X,Y;
+void dfs(int i, int j, int wallh[][maxy], int wallv[][maxy],int visited[maxx][maxy]) {
+    visited[i][j] = 1;
+    if (i > 0 && !visited[i-1][j] && wallh[i-1][j] == 0)
+        dfs(i-1, j, wallh, wallv,visited);
+
+    if (i < X-1 && !visited[i+1][j] && wallh[i][j] == 0)
+        dfs(i+1, j, wallh, wallv,visited);
+
+    if (j > 0 && !visited[i][j-1] && wallv[i][j-1] == 0)
+        dfs(i, j-1, wallh, wallv,visited);
+
+    if (j < Y-1 && !visited[i][j+1] && wallv[i][j] == 0)
+        dfs(i, j+1, wallh, wallv,visited);
+}
+
+//تابع برسی اتصال نقشه
+int Connected(int wallh[][maxy], int wallv[][maxy],int visited[maxx][maxy]) {
+    for (int i = 0; i < X; i++)
+        for (int j = 0; j < Y; j++)
+            visited[i][j] = 0;
+    dfs(0, 0, wallh, wallv,visited);
+    for (int i = 0; i < X; i++) {
+        for (int j = 0; j < Y; j++) {
+            if (!visited[i][j]) {
+                return 0;
+            }
+        }
+    }
+    return 1;
+}
+
+
 int main () {
+    int wallh[maxx][maxy];
+    int wallv[maxx][maxy];
+    int visited[maxx][maxy];
+
+
      srand(time(NULL));
      int x , y ;
      printf("Please enter size of map :\n ");
@@ -85,10 +126,13 @@ int main () {
      }
 
      int wcount ;
-     printf("Please enter the number of walls:\n");
-     scanf("%d",&wcount) ;
-     int wallh[maxx][maxy];
-     int wallv[maxx][maxy];
+    printf("Please enter the number of walls:\n");
+    scanf("%d",&wcount) ;
+     while(wcount<0) {
+         printf("!EROR!\n(Invalid number of walls)\nPlease enter again:\n");
+         scanf ("%d",&wcount) ;
+     }
+
      for (int i=0 ; i<x ; i++ ) {
           for(int j=0 ; j<y ; j++) {
                wallh[i][j] = 0 ;
@@ -100,34 +144,52 @@ int main () {
           }
      }
 
-     for(int i=0 ; i<wcount ; i++) {
-          int a , b ;
-          char c ;
-          printf("Please enter the coordinates of the wall(%d) and (H/V):\n",i+1);
+     // اجرای رندوم دیوار ها با توابع dfs  و Connected
+    int counter = 0;
+    int tries = 0;
+    int MAX_TRIES = wcount * 30;
 
-          while (1) {
-               scanf ("%d  %d %c",&a , &b ,&c) ;
+    while (counter < wcount && tries < MAX_TRIES) {
+        tries++;
 
-               if (!(c=='H' || c=='h' || c=='V' || c=='v')) {
-                    printf("!EROR!\n(Character must be H or V) Try again.\nPlese enter again the coordinates of the wall(%d):\n",i+1);
-                    continue;
-               }
+        int choice = rand() % 2;
+        int i, j;
 
-               if ((c=='H' || c=='h') && (a < 0 || a >= x-1 || b < 0 || b >= y)) {
-                    printf("!ERROR!\n(Out of map range)\nPlese enter again the coordinates of the wall(%d):\n",i+1);
-                    continue;
-               }
+        if (choice) {
+            i = rand() % (x - 1);
+            j = rand() % y;
 
-               if ((c=='V' || c=='v') && (a < 0 || a >= x || b < 0 || b >= y-1)) {
-                    printf("!ERROR!\n(Out of map range)\nPlese enter again the coordinates of the wall(%d):\n",i+1);
-                    continue;
-               }
+            if (wallh[i][j] == 1)
+                continue;
 
-               break;
-          }
-          if (c=='H' || c=='h') wallh[a][b] = 1;
-          else wallv[a][b] = 1;
-     }
+            wallh[i][j] = 1;
+
+            if (!Connected(wallh, wallv,visited)) {
+                wallh[i][j] = 0;
+            } else {
+                counter++;
+            }
+
+        } else {
+
+            i = rand() % x;
+            j = rand() % (y - 1);
+
+            if (wallv[i][j] == 1)
+                continue;
+
+            wallv[i][j] = 1;
+
+            if (!Connected(wallh, wallv,visited)) {
+                wallv[i][j] = 0;
+            } else {
+                counter++;
+            }
+        }
+    }
+    if (counter < wcount) {
+        printf("Warning: Only %d walls could be placed safely.\n", counter);
+    }
 
      //چاپ نقشه با ریلیب
     const int CELL = 50;
