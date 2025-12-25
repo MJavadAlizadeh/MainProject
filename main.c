@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <raylib.h>
 const int maxx = 100 ;
 const int maxy = 100 ;
 char hunter = 'H' ;
@@ -127,20 +128,67 @@ int main () {
           if (c=='H' || c=='h') wallh[a][b] = 1;
           else wallv[a][b] = 1;
      }
-     for(int i =0 ; i<x ; i++) {
-          for(int j=0 ; j<y ; j++){
-               printf("%c",map[i][j]) ;
-               if (wallv[i][j]==1){
-                    printf("%c",V) ;
-               }
-               else printf(" ") ;
 
-          }
-          printf("\n") ;
-          for(int j=0;j<x;j++) {
-               if(wallh[i][j] == 1) printf("%c ",H);
-               else printf("  ");
-          }
-          printf("\n");
-     }
+     //چاپ نقشه با ریلیب
+    const int CELL = 50;
+    const int WALL_THICK = 4;
+
+    int screenW = y * CELL;
+    int screenH = x * CELL;
+    InitWindow(screenW, screenH, "board");
+    SetTargetFPS(60);
+
+    while (!WindowShouldClose()) {
+        BeginDrawing();
+        ClearBackground(RAYWHITE);
+
+
+        for (int i = 0; i < x; i++) {
+            for (int j = 0; j < y; j++) {
+                Color bg = LIGHTGRAY;
+                char ch = map[i][j];
+                if (ch == runner || ch == hunter || ch == light) {
+                    bg = GRAY;
+                }
+                DrawRectangle(j*CELL, i*CELL, CELL, CELL, bg);
+            }
+        }
+
+
+        for (int i = 0; i < x-1; i++) {
+            for (int j = 0; j < y; j++) {
+                Color lineColor = wallh[i][j] ? BLACK : GRAY;
+                DrawRectangle(j*CELL, i*CELL + CELL - WALL_THICK/2,
+                              CELL, WALL_THICK, lineColor);
+            }
+        }
+
+
+        for (int i = 0; i < x; i++) {
+            for (int j = 0; j < y-1; j++) {
+                Color lineColor = wallv[i][j] ? BLACK : GRAY;
+                DrawRectangle(j*CELL + CELL - WALL_THICK/2, i*CELL,
+                              WALL_THICK, CELL, lineColor);
+            }
+        }
+
+
+        for (int i = 0; i < x; i++) {
+            for (int j = 0; j < y; j++) {
+                char ch = map[i][j];
+                if (ch == runner) {
+                    DrawCircle(j*CELL + CELL/2, i*CELL + CELL/2, CELL/3, BLUE);
+                } else if (ch == hunter) {
+                    DrawCircle(j*CELL + CELL/2, i*CELL + CELL/2, CELL/3, RED);
+                } else if (ch == light) {
+                    DrawCircle(j*CELL + CELL/2, i*CELL + CELL/2, CELL/3, YELLOW);
+                }
+            }
+        }
+
+        EndDrawing();
+    }
+
+
+
      }
