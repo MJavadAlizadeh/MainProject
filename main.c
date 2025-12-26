@@ -46,6 +46,55 @@ int Connected(int wallh[][maxy], int wallv[][maxy],int visited[maxx][maxy]) {
     return 1;
 }
 
+//تابع فاصله دو کاراکتر
+int dist(int x1, int y1, int x2, int y2) {
+    if (x1 > x2) x1 -= x2;
+    else x1 = x2 - x1;
+
+    if (y1 > y2) y1 -= y2;
+    else y1 = y2 - y1;
+    if (x1+y1 >= 2)
+        return 1;
+    else
+        return 0;
+}
+
+//تابع ریست ارایه های مربوط به مپ
+void MapReset(char map[][maxy],char input ,int x ,int y) {
+    for (int i=0 ; i<x ; i++ ){
+        for(int j=0 ; j<y ; j++){
+            map[i][j] = input ;
+        }
+    }
+}
+//تابع گیرنده تعداد هانتر و رانر
+int RHGetter(char input,int x ,int y,int MainRcount) {
+    int rcount,hcount;
+    if (input == 'R') {
+        printf("Please enter the number of runners:\n");
+        scanf ("%d",&rcount ) ;
+        while (rcount<1 || rcount>(x*y)-2) {
+            if (rcount<1)
+                printf("!EROR!\n(Invalid number of runners)\nPlease enter again:\n");
+            else
+                printf("!EROR!\n(The number of runners entered is greater than the number of empty spaces on the map)\nPlease enter again:\n");
+            scanf ("%d",&rcount ) ;
+        }
+        return rcount ;
+    }
+    else if (input == 'H') {
+        printf("Please enter the number of hunters:\n");
+        scanf ("%d",&hcount) ;
+        while (hcount<1 || hcount>((x*y)-MainRcount-1)) {
+            if (hcount<1)
+                printf("!EROR!\n(Invalid number of hunters)\nPlease enter again:\n");
+            else
+                printf("!EROR!\n(The number of runners entered is greater than the number of empty spaces on the map)\nPlease enter again:\n");
+            scanf ("%d",&hcount) ;
+        }
+        return hcount ;
+    }
+}
 
 int main () {
     int wallh[maxx][maxy];
@@ -57,74 +106,102 @@ int main () {
      int x , y ;
      printf("Please enter size of map :\n ");
      scanf("%d %d" , &x,&y );
-     while (x<2 || y<2) {
+     while ((x<2 || y<2) || (x==2 && y==2)) {
           printf("!EROR!\n(The map size must be greater than 2*2.)\nPlease enter again:\n");
           scanf("%d %d" , &x,&y );
      }
      char map[maxx][maxy] ;
-     for (int i=0 ; i<x ; i++ ){
-          for(int j=0 ; j<y ; j++){
-               map[i][j] = block ;
-          }
-     }
-     int lightx = (rand() % x);
-     int lighty = (rand() % y);
-     map[lightx][lighty] = light ;
+     MapReset(map,block,x,y);
 
-     int rcount ;
+     int rcount = 0 ;
      int Runner[maxx][maxy] ;
-     for (int i=0 ; i<x ; i++ ){
-          for(int j=0 ; j<y ; j++){
-               Runner[i][j] = 0 ;
-          }
-     }
-     printf("Please enter the number of runners:\n");
-     scanf ("%d",&rcount ) ;
-     while (rcount<1 || rcount>(x*y)-2) {
-          if (rcount<1)
-               printf("!EROR!\n(Invalid number of runners)\nPlease enter again:\n");
-          else
-               printf("!EROR!\n(The number of runners entered is greater than the number of empty spaces on the map)\nPlease enter again:\n");
-          scanf ("%d",&rcount ) ;
-     }
-     for(int i=0 ; i<rcount ; i++) {
-          int a = (rand() % x);
-          int b = (rand() % y);
-          while ((a==lightx && b==lighty) || Runner[a][b]==1){
-               a = (rand() % x);
-               b = (rand() % y);
-          }
-          map[a][b] = runner ;
-          Runner[a][b] = 1;
-     }
+     MapReset(Runner,0,x,y);
+     rcount = RHGetter('R',x,y,rcount);
 
-     int hcount ;
+     int hcount = 0 ;
      int Hunter[maxx][maxy] ;
-     for (int i=0 ; i<x ; i++ ){
-          for(int j=0 ; j<y ; j++){
-               Hunter[i][j] = 0 ;
-          }
-     }
-     printf("Please enter the number of hunters:\n");
-     scanf ("%d",&hcount) ;
-     while (hcount<1 || hcount>((x*y)-rcount-1)) {
-          if (hcount<1)
-               printf("!EROR!\n(Invalid number of hunters)\nPlease enter again:\n");
-          else
-               printf("!EROR!\n(The number of runners entered is greater than the number of empty spaces on the map)\nPlease enter again:\n");
-          scanf ("%d",&hcount) ;
-     }
-     for(int i=0 ; i<hcount ; i++) {
-          int a = (rand() % x);
-          int b = (rand() % y);
-          while ((a==lightx && b==lighty) || Runner[a][b]==1 || Hunter[a][b]==1){
-               a = (rand() % x);
-               b = (rand() % y);
-          }
-          map[a][b] = hunter ;
-          Hunter[a][b] = 1;
-     }
+     MapReset(Hunter,0,x,y);
+    hcount = RHGetter('H',x,y,rcount);
 
+    //مشخص کردن خونه های هر کاراکتر در مپ
+    int ok = 0;
+    while (!ok) {
+        int TryLimit = 500;
+        int CharactersTries = 0;
+        int CharactersSum = rcount + hcount + 1 ;
+        int LDistance,RDistance;
+        while (CharactersTries<TryLimit ) {
+            int CharactersCount = 0;
+            CharactersTries++;
+
+            MapReset(map,block,x,y) ;
+            MapReset(Hunter,0,x,y) ;
+            MapReset(Runner,0,x,y) ;
+
+            int lightx = (rand() % x);
+            int lighty = (rand() % y);
+            map[lightx][lighty] = light ;
+            CharactersCount++;
+            for(int i=0 ; i<rcount; i++) {
+                int try=0;
+                int a = (rand() % x);
+                int b = (rand() % y);
+                LDistance = dist(a,b,lightx,lighty);
+                while (((a==lightx && b==lighty) || Runner[a][b]==1 || LDistance == 0 ) && try < TryLimit ) {
+                    a = (rand() % x);
+                    b = (rand() % y);
+                    LDistance = dist(a,b,lightx,lighty);
+                    try++;
+                }
+                map[a][b] = runner ;
+                Runner[a][b] = 1;
+                CharactersCount++;
+            }
+
+            for(int i=0 ; i<hcount ; i++) {
+                int a = (rand() % x);
+                int b = (rand() % y);
+                int sw=1;
+                int try=0;
+                while (sw && try<TryLimit) {
+                    try++;
+                    sw = 0;
+                    LDistance = dist(a,b,lightx,lighty);
+                    if ((a==lightx && b==lighty) || Runner[a][b]==1 || Hunter[a][b]==1)
+                        sw=1;
+                    if (LDistance == 0)
+                        sw=1;
+                    for (int i = 0; i < x; i++) {
+                        for (int j = 0; j < y; j++) {
+                            if (Runner[i][j] == 1) {
+                                RDistance=dist(a, b, i, j);
+                                if (RDistance == 0)
+                                    sw=1;
+                            }
+                        }
+                    }
+                    if (sw) {
+                        a = (rand() % x);
+                        b = (rand() % y);
+                    }
+                }
+                if (!sw) {
+                    map[a][b] = hunter ;
+                    Hunter[a][b] = 1;
+                    CharactersCount++;
+                }
+            }
+            if (CharactersCount == CharactersSum) {
+                ok = 1;
+                break;
+            }
+        }
+        if (!ok) {
+            printf("!EROR!\n(Your Runner and Hunter input values are not optimal for the map dimensions)\nPlease re-enter the values carefully\n");
+            // rcount = RHGetter('R',x,y,rcount);
+            // hcount = RHGetter('H',x,y,rcount);
+        }
+    }
      int wcount ;
     printf("Please enter the number of walls:\n");
     scanf("%d",&wcount) ;
@@ -145,13 +222,13 @@ int main () {
      }
 
      // اجرای رندوم دیوار ها با توابع dfs  و Connected
-    int counter = 0;
-    int tries = 0;
-    int MAX_TRIES = wcount * 30;
+    int Wallcounter = 0;
+    int WallTries = 0;
+    int WallTry = wcount * 30;
     X = x;
     Y = y;
-    while (counter < wcount && tries < MAX_TRIES) {
-        tries++;
+    while (Wallcounter < wcount && WallTries < WallTry) {
+        WallTries++;
 
         int choice = rand() % 2;
         int i, j;
@@ -168,7 +245,7 @@ int main () {
             if (!Connected(wallh, wallv,visited)) {
                 wallh[i][j] = 0;
             } else {
-                counter++;
+                Wallcounter++;
             }
 
         } else {
@@ -184,12 +261,12 @@ int main () {
             if (!Connected(wallh, wallv,visited)) {
                 wallv[i][j] = 0;
             } else {
-                counter++;
+                Wallcounter++;
             }
         }
     }
-    if (counter < wcount) {
-        printf("Warning: Only %d walls could be placed safely.\n", counter);
+    if (Wallcounter < wcount) {
+        printf("Warning: Only %d walls could be placed safely.\n", Wallcounter);
     }
 
      //چاپ نقشه با ریلیب
