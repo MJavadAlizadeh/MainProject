@@ -67,6 +67,14 @@ void MapReset(char map[][maxy],char input ,int x ,int y) {
         }
     }
 }
+//تابع ریست ارایه های مربوط به رانر و هانتر
+void RHReset(int map[][maxy],int x ,int y) {
+    for (int i=0 ; i<x ; i++ ){
+        for(int j=0 ; j<y ; j++){
+            map[i][j] = 0 ;
+        }
+    }
+}
 //تابع گیرنده تعداد هانتر و رانر
 int RHGetter(char input,int x ,int y,int MainRcount) {
     int rcount,hcount;
@@ -97,12 +105,12 @@ int RHGetter(char input,int x ,int y,int MainRcount) {
 }
 
 int main () {
+    srand(time(NULL));
     int wallh[maxx][maxy];
     int wallv[maxx][maxy];
     int visited[maxx][maxy];
-
-
-     srand(time(NULL));
+    char map[maxx][maxy] ;
+    //گرفتن ابعاد مپ
      int x , y ;
      printf("Please enter size of map :\n ");
      scanf("%d %d" , &x,&y );
@@ -110,17 +118,13 @@ int main () {
           printf("!EROR!\n(The map size must be greater than 2*2.)\nPlease enter again:\n");
           scanf("%d %d" , &x,&y );
      }
-     char map[maxx][maxy] ;
-     MapReset(map,block,x,y);
-
-     int rcount = 0 ;
+    //گرفتن تعداد رانر
+     int rcount ;
      int Runner[maxx][maxy] ;
-     MapReset(Runner,0,x,y);
-     rcount = RHGetter('R',x,y,rcount);
-
-     int hcount = 0 ;
+     rcount = RHGetter('R',x,y,0);
+    //گرفتن تعداد هانتر
+     int hcount ;
      int Hunter[maxx][maxy] ;
-     MapReset(Hunter,0,x,y);
     hcount = RHGetter('H',x,y,rcount);
 
     //مشخص کردن خونه های هر کاراکتر در مپ
@@ -133,32 +137,30 @@ int main () {
         while (CharactersTries<TryLimit ) {
             int CharactersCount = 0;
             CharactersTries++;
-
+            //پاکسازی ارایه برای مشخص کردن مشخصات کاراکتر ها
             MapReset(map,block,x,y) ;
-            MapReset(Hunter,0,x,y) ;
-            MapReset(Runner,0,x,y) ;
-
+            RHReset(Hunter,x,y) ;
+            RHReset(Runner,x,y) ;
+            //مشخص کردن مشخصات چراغ
             int lightx = (rand() % x);
             int lighty = (rand() % y);
             map[lightx][lighty] = light ;
             CharactersCount++;
+            //مشخص کردن مشخصات رانر ها
             for(int i=0 ; i<rcount; i++) {
-                int try=0;
-                int a = (rand() % x);
-                int b = (rand() % y);
-                LDistance = dist(a,b,lightx,lighty);
-                while (((a==lightx && b==lighty) || Runner[a][b]==1 || LDistance == 0 ) && try < TryLimit ) {
+                int a,b,try=0;
+                 do{
                     a = (rand() % x);
                     b = (rand() % y);
                     LDistance = dist(a,b,lightx,lighty);
                     try++;
-                }
+                }while (((a==lightx && b==lighty) || Runner[a][b]==1 || LDistance == 0 ) && try < TryLimit );
                 map[a][b] = runner ;
                 Runner[a][b] = 1;
                 CharactersCount++;
             }
-
-            for(int i=0 ; i<hcount ; i++) {
+            //مشخص کردن مشخصات هانتر ها
+            for(int k=0 ; k<hcount ; k++) {
                 int a = (rand() % x);
                 int b = (rand() % y);
                 int sw=1;
@@ -169,13 +171,13 @@ int main () {
                     LDistance = dist(a,b,lightx,lighty);
                     if ((a==lightx && b==lighty) || Runner[a][b]==1 || Hunter[a][b]==1)
                         sw=1;
-                    if (LDistance == 0)
+                    if (!LDistance)
                         sw=1;
                     for (int i = 0; i < x; i++) {
                         for (int j = 0; j < y; j++) {
                             if (Runner[i][j] == 1) {
                                 RDistance=dist(a, b, i, j);
-                                if (RDistance == 0)
+                                if (!RDistance)
                                     sw=1;
                             }
                         }
@@ -198,8 +200,8 @@ int main () {
         }
         if (!ok) {
             printf("!EROR!\n(Your Runner and Hunter input values are not optimal for the map dimensions)\nPlease re-enter the values carefully\n");
-            // rcount = RHGetter('R',x,y,rcount);
-            // hcount = RHGetter('H',x,y,rcount);
+            rcount = RHGetter('R',x,y,0);
+            hcount = RHGetter('H',x,y,rcount);
         }
     }
      int wcount ;
