@@ -119,13 +119,13 @@ int main () {
           scanf("%d %d" , &x,&y );
      }
     //گرفتن تعداد رانر
-     int rcount ;
+     int rcount = 1;
      int Runner[maxx][maxy] ;
-     rcount = RHGetter('R',x,y,0);
+     /*rcount = RHGetter('R',x,y,0);*/
     //گرفتن تعداد هانتر
-     int hcount ;
+     int hcount = 1 ;
      int Hunter[maxx][maxy] ;
-    hcount = RHGetter('H',x,y,rcount);
+   /* hcount = RHGetter('H',x,y,rcount);*/
 
     //مشخص کردن خونه های هر کاراکتر در مپ
     int ok = 0;
@@ -200,10 +200,17 @@ int main () {
         }
         if (!ok) {
             printf("!EROR!\n(Your Runner and Hunter input values are not optimal for the map dimensions)\nPlease re-enter the values carefully\n");
-            rcount = RHGetter('R',x,y,0);
-            hcount = RHGetter('H',x,y,rcount);
+            //rcount = RHGetter('R',x,y,0);
+           // hcount = RHGetter('H',x,y,rcount);
         }
     }
+    int  runnerx,runnery ;
+    for (int i = 0; i <x; i++)
+        for (int j = 0; j <y; j++)
+            if(Runner[i][j] == 1){
+                runnerx=i ;
+                runnery=j ;
+            }
      int wcount ;
     printf("Please enter the number of walls:\n");
     scanf("%d",&wcount) ;
@@ -274,6 +281,7 @@ int main () {
      //چاپ نقشه با ریلیب
     const int CELL = 50;
     const int WALL_THICK = 4;
+    int erortime = 0 ;
 
     int screenW = y * CELL;
     int screenH = x * CELL;
@@ -281,6 +289,36 @@ int main () {
     SetTargetFPS(60);
 
     while (!WindowShouldClose()) {
+
+        int newx=runnerx ;
+        int newy=runnery;
+        int move = 0 ;
+        if (IsKeyPressed(KEY_UP))    { newx--; move = 1; }
+        if (IsKeyPressed(KEY_DOWN))  { newx++; move = 1; }
+        if (IsKeyPressed(KEY_LEFT))  { newy--; move = 1; }
+        if (IsKeyPressed(KEY_RIGHT)) { newy++; move = 1; }
+        if (move) {
+            int valid = 1;
+            if(newx<0||newx>x||newy<0||newy>y)
+                valid =0 ;
+            if(valid){
+                if(newx==runnerx-1 && wallh[newx][newy]) valid=0 ;
+                if(newx==runnerx+1 && wallh[runnerx][runnery]) valid=0 ;
+                if(newy==runnery-1 && wallv[newx][newy]) valid=0 ;
+                if(newy==runnery+1 && wallv[runnerx][runnery]) valid=0 ;
+            }
+            if (valid) {
+                map[runnerx][runnery] = block;
+                runnerx = newx;
+                runnery = newy;
+                map[runnerx][runnery] = runner;
+            }
+            else {
+                erortime=60 ;
+            }
+
+        }
+
         BeginDrawing();
         ClearBackground(RAYWHITE);
 
@@ -326,6 +364,11 @@ int main () {
                     DrawCircle(j*CELL + CELL/2, i*CELL + CELL/2, CELL/3, YELLOW);
                 }
             }
+        }
+
+        if (erortime > 0) {
+            DrawText("INVALID MOVE!", 10, 10, 20, RED);
+            erortime--;
         }
 
         EndDrawing();
