@@ -320,15 +320,15 @@ int main () {
         }
 
         BeginDrawing();
-        ClearBackground(RAYWHITE);
+        ClearBackground(WHITE);
 
 
         for (int i = 0; i < x; i++) {
             for (int j = 0; j < y; j++) {
-                Color bg = LIGHTGRAY;
+                Color bg = WHITE;
                 char ch = map[i][j];
                 if (ch == runner || ch == hunter || ch == light) {
-                    bg = GRAY;
+                    bg = WHITE;
                 }
                 DrawRectangle(j*CELL, i*CELL, CELL, CELL, bg);
             }
