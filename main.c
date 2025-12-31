@@ -299,13 +299,13 @@ int main () {
         if (IsKeyPressed(KEY_RIGHT)) { newy++; move = 1; }
         if (move) {
             int valid = 1;
-            if(newx<0||newx>x||newy<0||newy>y)
+            if(newx<0||newx>=x||newy<0||newy>=y)
                 valid =0 ;
             if(valid){
-                if(newx==runnerx-1 && wallh[newx][newy]) valid=0 ;
-                if(newx==runnerx+1 && wallh[runnerx][runnery]) valid=0 ;
-                if(newy==runnery-1 && wallv[newx][newy]) valid=0 ;
-                if(newy==runnery+1 && wallv[runnerx][runnery]) valid=0 ;
+                if(newx==(runnerx-1) && wallh[newx][newy]) valid=0 ;
+                if(newx==(runnerx+1) && wallh[runnerx][runnery]) valid=0 ;
+                if(newy==(runnery-1) && wallv[newx][newy]) valid=0 ;
+                if(newy==(runnery+1) && wallv[runnerx][runnery]) valid=0 ;
             }
             if (valid) {
                 map[runnerx][runnery] = block;
