@@ -82,9 +82,9 @@ int RHGetter(char input,int x ,int y,int MainRcount) {
         scanf ("%d",&rcount ) ;
         while (rcount<1 || rcount>(x*y)-2) {
             if (rcount<1)
-                printf("!EROR!\n(Invalid number of runners)\nPlease enter again:\n");
+                printf("!ERROR!\n(Invalid number of runners)\nPlease enter again:\n");
             else
-                printf("!EROR!\n(The number of runners entered is greater than the number of empty spaces on the map)\nPlease enter again:\n");
+                printf("!ERROR!\n(The number of runners entered is greater than the number of empty spaces on the map)\nPlease enter again:\n");
             scanf ("%d",&rcount ) ;
         }
         return rcount ;
@@ -94,13 +94,19 @@ int RHGetter(char input,int x ,int y,int MainRcount) {
         scanf ("%d",&hcount) ;
         while (hcount<1 || hcount>((x*y)-MainRcount-1)) {
             if (hcount<1)
-                printf("!EROR!\n(Invalid number of hunters)\nPlease enter again:\n");
+                printf("!ERROR!\n(Invalid number of hunters)\nPlease enter again:\n");
             else
-                printf("!EROR!\n(The number of runners entered is greater than the number of empty spaces on the map)\nPlease enter again:\n");
+                printf("!ERROR!\n(The number of runners entered is greater than the number of empty spaces on the map)\nPlease enter again:\n");
             scanf ("%d",&hcount) ;
         }
         return hcount ;
     }
+}
+//تابع تشخیص پایان بازی با گرفتن مختصات 3 کاراکتر اصلی
+int GameState(int Lx,int Ly,int Rx,int Ry,int Hx,int Hy) {
+    if (Lx==Rx && Ly==Ry) return 1;
+    else if (Hx==Rx && Hy==Ry) return 2;
+    else return 0;
 }
 
 int main () {
@@ -109,12 +115,13 @@ int main () {
     int wallv[maxx][maxy];
     int visited[maxx][maxy];
     char map[maxx][maxy] ;
+    int lightx,lighty,runnerx,runnery,hunterx,huntery ;
     //گرفتن ابعاد مپ
      int x , y ;
      printf("Please enter size of map :\n ");
      scanf("%d %d" , &x,&y );
      while ((x<2 || y<2) || (x==2 && y==2)) {
-          printf("!EROR!\n(The map size must be greater than 2*2.)\nPlease enter again:\n");
+          printf("!ERROR!\n(The map size must be greater than 2*2.)\nPlease enter again:\n");
           scanf("%d %d" , &x,&y );
      }
     //گرفتن تعداد رانر
@@ -141,8 +148,8 @@ int main () {
             RHWReset(Hunter,x,y) ;
             RHWReset(Runner,x,y) ;
             //مشخص کردن مشخصات چراغ
-            int lightx = (rand() % x);
-            int lighty = (rand() % y);
+            lightx = (rand() % x);
+            lighty = (rand() % y);
             map[lightx][lighty] = light ;
             CharactersCount++;
             //مشخص کردن مشخصات رانر ها
@@ -203,18 +210,23 @@ int main () {
         //     hcount = RHGetter('H',x,y,rcount);
         // }
     }
-    int  runnerx,runnery ;
     for (int i = 0; i <x; i++)
         for (int j = 0; j <y; j++)
             if(Runner[i][j] == 1){
                 runnerx=i ;
                 runnery=j ;
             }
+    for (int i = 0; i <x; i++)
+        for (int j = 0; j <y; j++)
+            if(Hunter[i][j] == 1){
+                hunterx=i ;
+                huntery=j ;
+            }
      int wcount ;
     printf("Please enter the number of walls:\n");
     scanf("%d",&wcount) ;
      while(wcount<0||wcount>((x-1)*(y-1))) {
-         printf("!EROR!\n(Invalid number of walls)\nPlease enter again:\n");
+         printf("!ERROR!\n(Invalid number of walls)\nPlease enter again:\n");
          scanf ("%d",&wcount) ;
      }
 
@@ -270,44 +282,69 @@ int main () {
      //چاپ نقشه با ریلیب
     const int CELL = 50;
     const int WALL_THICK = 4;
-    int erortime = 0 ;
+    int ErrorTimer = 0 ;
+    int EndTimer = 0;
 
     int screenW = y * CELL;
     int screenH = x * CELL;
     InitWindow(screenW, screenH, "board");
     SetTargetFPS(60);
 
-    while (!WindowShouldClose()) {
-
-        int newx=runnerx ;
-        int newy=runnery;
-        int move = 0 ;
-        if (IsKeyPressed(KEY_UP))    { newx--; move = 1; }
-        if (IsKeyPressed(KEY_DOWN))  { newx++; move = 1; }
-        if (IsKeyPressed(KEY_LEFT))  { newy--; move = 1; }
-        if (IsKeyPressed(KEY_RIGHT)) { newy++; move = 1; }
-        if (move) {
-            int valid = 1;
-            if(newx<0||newx>=x||newy<0||newy>=y)
-                valid =0 ;
-            if(valid){
-                if(newx==(runnerx-1) && wallh[runnerx-1][runnery]) valid=0 ;
-                if(newx==(runnerx+1) && wallh[runnerx][runnery]) valid=0 ;
-                if(newy==(runnery-1) && wallv[runnerx][runnery-1]) valid=0 ;
-                if(newy==(runnery+1) && wallv[runnerx][runnery]) valid=0 ;
-            }
-            if (valid) {
-                map[runnerx][runnery] = block;
-                runnerx = newx;
-                runnery = newy;
-                map[runnerx][runnery] = runner;
-            }
-            else {
-                erortime=60 ;
-            }
-
+    int Game = 0;
+    int End = 1;
+    char turn ='R';
+    while (End) {
+        if (WindowShouldClose()) {
+            Game = 0;
+            break;
         }
 
+        int newrx = runnerx ;
+        int newry = runnery ;
+        int newhx = hunterx ;
+        int newhy = huntery ;
+        int RMove = 0 ;
+        if (IsKeyPressed(KEY_UP))    { newrx--; RMove = 1; }
+        if (IsKeyPressed(KEY_DOWN))  { newrx++; RMove = 1; }
+        if (IsKeyPressed(KEY_LEFT))  { newry--; RMove = 1; }
+        if (IsKeyPressed(KEY_RIGHT)) { newry++; RMove = 1; }
+        if (RMove) {
+            while (turn=='R') {
+                int valid = 1;
+                if(newrx<0||newrx>=x||newry<0||newry>=y)
+                    valid =0 ;
+                if(valid){
+                    if(newrx==(runnerx-1) && wallh[runnerx-1][runnery]) {valid=0 ;turn='H';}
+                    if(newrx==(runnerx+1) && wallh[runnerx][runnery]) {valid=0 ;turn='H';}
+                    if(newry==(runnery-1) && wallv[runnerx][runnery-1]) {valid=0 ;turn='H';}
+                    if(newry==(runnery+1) && wallv[runnerx][runnery]) {valid=0 ;turn='H';}
+
+                }
+                if (valid) {
+                    map[runnerx][runnery] = block;
+                    runnerx = newrx;
+                    runnery = newry;
+                    map[runnerx][runnery] = runner;
+                    turn='H';
+                }
+                else {
+                    ErrorTimer=60 ;
+                }
+            }
+        }
+        Game = GameState(lightx,lighty,runnerx,runnery,hunterx,huntery);
+        if (turn=='H' && !Game) {
+            if (runnery>huntery && !(wallv[hunterx][huntery]) && huntery+1<y) {newhy++;}
+            else if (runnery<huntery && !(wallv[hunterx][huntery-1]) && huntery-1>=0) {newhy--;}
+            else if (runnerx>hunterx && !(wallh[hunterx][huntery]) && hunterx+1<x) {newhx++;}
+            else if (runnerx<hunterx && !(wallh[hunterx-1][huntery]) && hunterx-1>=0) {newhx--;}
+            map[hunterx][huntery] = block;
+            hunterx = newhx;
+            huntery = newhy;
+            map[hunterx][huntery] = hunter;
+            turn='R';
+        }
+        Game = GameState(lightx,lighty,runnerx,runnery,hunterx,huntery);
         BeginDrawing();
         ClearBackground(WHITE);
 
@@ -350,16 +387,41 @@ int main () {
                 } else if (ch == hunter) {
                     DrawCircle(j*CELL + CELL/2, i*CELL + CELL/2, CELL/3, RED);
                 } else if (ch == light) {
-                    DrawCircle(j*CELL + CELL/2, i*CELL + CELL/2, CELL/3, YELLOW);
+                    int pad = WALL_THICK / 2;
+                    DrawRectangle(j*CELL + pad , i*CELL + pad , CELL - WALL_THICK , CELL - WALL_THICK, YELLOW);
                 }
             }
         }
 
-        if (erortime > 0) {
+        if (ErrorTimer > 0) {
             DrawText("INVALID MOVE!", 10, 10, 20, RED);
-            erortime--;
+            ErrorTimer--;
         }
+        if (Game && EndTimer==0) {
+            EndTimer=180;
+        }
+        if (Game) {
+            ClearBackground(RAYWHITE);
 
+            if (Game == 1) {
+                DrawText("YOU WIN",
+                         screenW/2 - MeasureText("YOU WIN", 40)/2,
+                         screenH/2 - 20,
+                         40,
+                         GREEN);
+            }
+            else if (Game == 2) {
+                DrawText("YOU LOSE",
+                         screenW/2 - MeasureText("YOU LOSE", 40)/2,
+                         screenH/2 - 20,
+                         40,
+                         RED);
+            }
+            EndTimer--;
+            if (EndTimer <= 0) {
+                End = 0;
+            }
+        }
         EndDrawing();
     }
 
