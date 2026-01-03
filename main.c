@@ -295,7 +295,7 @@ int main () {
     char turn ='R';
     while (End) {
         if (WindowShouldClose()) {
-            Game = 0;
+            End = 0;
             break;
         }
 
@@ -304,47 +304,51 @@ int main () {
         int newhx = hunterx ;
         int newhy = huntery ;
         int RMove = 0 ;
-        if (IsKeyPressed(KEY_UP))    { newrx--; RMove = 1; }
-        if (IsKeyPressed(KEY_DOWN))  { newrx++; RMove = 1; }
-        if (IsKeyPressed(KEY_LEFT))  { newry--; RMove = 1; }
-        if (IsKeyPressed(KEY_RIGHT)) { newry++; RMove = 1; }
-        if (RMove) {
-            while (turn=='R') {
-                int valid = 1;
-                if(newrx<0||newrx>=x||newry<0||newry>=y)
-                    valid =0 ;
-                if(valid){
-                    if(newrx==(runnerx-1) && wallh[runnerx-1][runnery]) {valid=0 ;turn='H';}
-                    if(newrx==(runnerx+1) && wallh[runnerx][runnery]) {valid=0 ;turn='H';}
-                    if(newry==(runnery-1) && wallv[runnerx][runnery-1]) {valid=0 ;turn='H';}
-                    if(newry==(runnery+1) && wallv[runnerx][runnery]) {valid=0 ;turn='H';}
 
-                }
-                if (valid) {
-                    map[runnerx][runnery] = block;
-                    runnerx = newrx;
-                    runnery = newry;
-                    map[runnerx][runnery] = runner;
-                    turn='H';
-                }
-                else {
-                    ErrorTimer=60 ;
+        if (!Game){
+            if (IsKeyPressed(KEY_UP))    { newrx--; RMove = 1; }
+            if (IsKeyPressed(KEY_DOWN))  { newrx++; RMove = 1; }
+            if (IsKeyPressed(KEY_LEFT))  { newry--; RMove = 1; }
+            if (IsKeyPressed(KEY_RIGHT)) { newry++; RMove = 1; }
+            if (RMove) {
+                while (turn=='R') {
+                    int valid = 1;
+                    if(newrx<0||newrx>=x||newry<0||newry>=y)
+                        valid =0 ;
+                    if(valid){
+                        if(newrx==(runnerx-1) && wallh[runnerx-1][runnery]) valid=0 ;
+                        if(newrx==(runnerx+1) && wallh[runnerx][runnery]) valid=0 ;
+                        if(newry==(runnery-1) && wallv[runnerx][runnery-1]) valid=0 ;
+                        if(newry==(runnery+1) && wallv[runnerx][runnery]) valid=0 ;
+
+                    }
+                    if (valid) {
+                        map[runnerx][runnery] = block;
+                        runnerx = newrx;
+                        runnery = newry;
+                        map[runnerx][runnery] = runner;
+                        turn='H';
+                    }
+                    else {
+                        ErrorTimer=60 ;
+                        break;
+                    }
                 }
             }
+            Game = GameState(lightx,lighty,runnerx,runnery,hunterx,huntery);
+            if (turn=='H' && !Game) {
+                if (runnery>huntery && !(wallv[hunterx][huntery]) && huntery+1<y) {newhy++;}
+                else if (runnery<huntery && !(wallv[hunterx][huntery-1]) && huntery-1>=0) {newhy--;}
+                else if (runnerx>hunterx && !(wallh[hunterx][huntery]) && hunterx+1<x) {newhx++;}
+                else if (runnerx<hunterx && !(wallh[hunterx-1][huntery]) && hunterx-1>=0) {newhx--;}
+                map[hunterx][huntery] = block;
+                hunterx = newhx;
+                huntery = newhy;
+                map[hunterx][huntery] = hunter;
+                turn='R';
+            }
+            Game = GameState(lightx,lighty,runnerx,runnery,hunterx,huntery);
         }
-        Game = GameState(lightx,lighty,runnerx,runnery,hunterx,huntery);
-        if (turn=='H' && !Game) {
-            if (runnery>huntery && !(wallv[hunterx][huntery]) && huntery+1<y) {newhy++;}
-            else if (runnery<huntery && !(wallv[hunterx][huntery-1]) && huntery-1>=0) {newhy--;}
-            else if (runnerx>hunterx && !(wallh[hunterx][huntery]) && hunterx+1<x) {newhx++;}
-            else if (runnerx<hunterx && !(wallh[hunterx-1][huntery]) && hunterx-1>=0) {newhx--;}
-            map[hunterx][huntery] = block;
-            hunterx = newhx;
-            huntery = newhy;
-            map[hunterx][huntery] = hunter;
-            turn='R';
-        }
-        Game = GameState(lightx,lighty,runnerx,runnery,hunterx,huntery);
         BeginDrawing();
         ClearBackground(WHITE);
 
