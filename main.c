@@ -405,8 +405,8 @@ int main () {
             EndTimer=180;
         }
         if (Game) {
-            ClearBackground(RAYWHITE);
-
+            ClearBackground(WHITE);
+            DrawRectangle(0, 0, CELL*y, CELL*x, WHITE);
             if (Game == 1) {
                 DrawText("YOU WIN",
                          screenW/2 - MeasureText("YOU WIN", 40)/2,
