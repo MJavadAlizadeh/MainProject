@@ -14,30 +14,29 @@ char V = '|' ;
 char H = '_' ;
 
 //تابع DFS
-int X,Y;
-void dfs(int i, int j, int wallh[][maxy], int wallv[][maxy],int visited[maxx][maxy]) {
+void dfs(int i, int j, int wallh[][maxy], int wallv[][maxy],int visited[][maxy],int x ,int y) {
     visited[i][j] = 1;
     if (i > 0 && !visited[i-1][j] && wallh[i-1][j] == 0)
-        dfs(i-1, j, wallh, wallv,visited);
+        dfs(i-1, j, wallh, wallv,visited,x,y);
 
-    if (i < X-1 && !visited[i+1][j] && wallh[i][j] == 0)
-        dfs(i+1, j, wallh, wallv,visited);
+    if (i < x-1 && !visited[i+1][j] && wallh[i][j] == 0)
+        dfs(i+1, j, wallh, wallv,visited,x,y);
 
     if (j > 0 && !visited[i][j-1] && wallv[i][j-1] == 0)
-        dfs(i, j-1, wallh, wallv,visited);
+        dfs(i, j-1, wallh, wallv,visited,x,y);
 
-    if (j < Y-1 && !visited[i][j+1] && wallv[i][j] == 0)
-        dfs(i, j+1, wallh, wallv,visited);
+    if (j < y-1 && !visited[i][j+1] && wallv[i][j] == 0)
+        dfs(i, j+1, wallh, wallv,visited,x,y);
 }
 
 //تابع برسی اتصال نقشه
-int Connected(int wallh[][maxy], int wallv[][maxy],int visited[maxx][maxy]) {
-    for (int i = 0; i < X; i++)
-        for (int j = 0; j < Y; j++)
+int Connected(int wallh[][maxy], int wallv[][maxy],int visited[][maxy],int x ,int y) {
+    for (int i = 0; i < x; i++)
+        for (int j = 0; j < y; j++)
             visited[i][j] = 0;
-    dfs(0, 0, wallh, wallv,visited);
-    for (int i = 0; i < X; i++) {
-        for (int j = 0; j < Y; j++) {
+    dfs(0, 0, wallh, wallv,visited,x,y);
+    for (int i = 0; i < x; i++) {
+        for (int j = 0; j < y; j++) {
             if (!visited[i][j]) {
                 return 0;
             }
@@ -67,8 +66,8 @@ void MapReset(char map[][maxy],char input ,int x ,int y) {
         }
     }
 }
-//تابع ریست ارایه های مربوط به رانر و هانتر
-void RHReset(int map[][maxy],int x ,int y) {
+//تابع ریست ارایه های مربوط به رانر و هانتر و دیوار ها
+void RHWReset(int map[][maxy],int x ,int y) {
     for (int i=0 ; i<x ; i++ ){
         for(int j=0 ; j<y ; j++){
             map[i][j] = 0 ;
@@ -121,16 +120,16 @@ int main () {
     //گرفتن تعداد رانر
      int rcount = 1;
      int Runner[maxx][maxy] ;
-     /*rcount = RHGetter('R',x,y,0);*/
+     //rcount = RHGetter('R',x,y,0);
     //گرفتن تعداد هانتر
      int hcount = 1 ;
      int Hunter[maxx][maxy] ;
-   /* hcount = RHGetter('H',x,y,rcount);*/
+   // hcount = RHGetter('H',x,y,rcount);
 
     //مشخص کردن خونه های هر کاراکتر در مپ
     int ok = 0;
+    int TryLimit = 500;
     while (!ok) {
-        int TryLimit = 500;
         int CharactersTries = 0;
         int CharactersSum = rcount + hcount + 1 ;
         int LDistance,RDistance;
@@ -139,8 +138,8 @@ int main () {
             CharactersTries++;
             //پاکسازی ارایه برای مشخص کردن مشخصات کاراکتر ها
             MapReset(map,block,x,y) ;
-            RHReset(Hunter,x,y) ;
-            RHReset(Runner,x,y) ;
+            RHWReset(Hunter,x,y) ;
+            RHWReset(Runner,x,y) ;
             //مشخص کردن مشخصات چراغ
             int lightx = (rand() % x);
             int lighty = (rand() % y);
@@ -198,11 +197,11 @@ int main () {
                 break;
             }
         }
-        if (!ok) {
-            printf("!EROR!\n(Your Runner and Hunter input values are not optimal for the map dimensions)\nPlease re-enter the values carefully\n");
-            //rcount = RHGetter('R',x,y,0);
-           // hcount = RHGetter('H',x,y,rcount);
-        }
+        // if (!ok) {
+        //     printf("!EROR!\n(Your Runner and Hunter input values are not optimal for the map dimensions)\nPlease re-enter the values carefully\n");
+        //     rcount = RHGetter('R',x,y,0);
+        //     hcount = RHGetter('H',x,y,rcount);
+        // }
     }
     int  runnerx,runnery ;
     for (int i = 0; i <x; i++)
@@ -219,24 +218,14 @@ int main () {
          scanf ("%d",&wcount) ;
      }
 
-     for (int i=0 ; i<x ; i++ ) {
-          for(int j=0 ; j<y ; j++) {
-               wallh[i][j] = 0 ;
-          }
-     }
-     for (int i=0 ; i<x ; i++ ) {
-          for(int j=0 ; j<y ; j++) {
-               wallv[i][j] = 0 ;
-          }
-     }
+     RHWReset(wallh,x,y);
+     RHWReset(wallv,x,y);
 
      // اجرای رندوم دیوار ها با توابع dfs  و Connected
     int Wallcounter = 0;
     int WallTries = 0;
-    int WallTry = wcount * 30;
-    X = x;
-    Y = y;
-    while (Wallcounter < wcount && WallTries < WallTry) {
+
+    while (Wallcounter < wcount && WallTries < TryLimit) {
         WallTries++;
 
         int choice = rand() % 2;
@@ -251,7 +240,7 @@ int main () {
 
             wallh[i][j] = 1;
 
-            if (!Connected(wallh, wallv,visited)) {
+            if (!Connected(wallh, wallv,visited,x,y)) {
                 wallh[i][j] = 0;
             } else {
                 Wallcounter++;
@@ -267,7 +256,7 @@ int main () {
 
             wallv[i][j] = 1;
 
-            if (!Connected(wallh, wallv,visited)) {
+            if (!Connected(wallh, wallv,visited,x,y)) {
                 wallv[i][j] = 0;
             } else {
                 Wallcounter++;
@@ -302,9 +291,9 @@ int main () {
             if(newx<0||newx>=x||newy<0||newy>=y)
                 valid =0 ;
             if(valid){
-                if(newx==(runnerx-1) && wallh[newx][newy]) valid=0 ;
+                if(newx==(runnerx-1) && wallh[runnerx-1][runnery]) valid=0 ;
                 if(newx==(runnerx+1) && wallh[runnerx][runnery]) valid=0 ;
-                if(newy==(runnery-1) && wallv[newx][newy]) valid=0 ;
+                if(newy==(runnery-1) && wallv[runnerx][runnery-1]) valid=0 ;
                 if(newy==(runnery+1) && wallv[runnerx][runnery]) valid=0 ;
             }
             if (valid) {
@@ -320,15 +309,15 @@ int main () {
         }
 
         BeginDrawing();
-        ClearBackground(RAYWHITE);
+        ClearBackground(WHITE);
 
 
         for (int i = 0; i < x; i++) {
             for (int j = 0; j < y; j++) {
-                Color bg = LIGHTGRAY;
+                Color bg = WHITE;
                 char ch = map[i][j];
                 if (ch == runner || ch == hunter || ch == light) {
-                    bg = GRAY;
+                    bg = WHITE;
                 }
                 DrawRectangle(j*CELL, i*CELL, CELL, CELL, bg);
             }
