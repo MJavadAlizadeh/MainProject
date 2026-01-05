@@ -104,8 +104,8 @@ int RHGetter(char input,int x ,int y,int MainRcount) {
 }
 //تابع تشخیص پایان بازی با گرفتن مختصات 3 کاراکتر اصلی
 int GameState(int Lx,int Ly,int Rx,int Ry,int Hx,int Hy) {
-    if (Lx==Rx && Ly==Ry) return 1;
-    else if (Hx==Rx && Hy==Ry) return 2;
+    if (Hx==Rx && Hy==Ry) return 2;
+    else if (Lx==Rx && Ly==Ry) return 1;
     else return 0;
 }
 
@@ -293,6 +293,7 @@ int main () {
     int Game = 0;
     int End = 1;
     char turn ='R';
+    int LightPos = 0;
     while (End) {
         if (WindowShouldClose()) {
             End = 0;
@@ -304,12 +305,12 @@ int main () {
         int newhx = hunterx ;
         int newhy = huntery ;
         int RMove = 0 ;
-
         if (!Game){
             if (IsKeyPressed(KEY_UP))    { newrx--; RMove = 1; }
             if (IsKeyPressed(KEY_DOWN))  { newrx++; RMove = 1; }
             if (IsKeyPressed(KEY_LEFT))  { newry--; RMove = 1; }
             if (IsKeyPressed(KEY_RIGHT)) { newry++; RMove = 1; }
+            if (IsKeyPressed(KEY_SPACE)) {RMove = 1;}
             if (RMove) {
                 while (turn=='R') {
                     int valid = 1;
@@ -341,7 +342,9 @@ int main () {
                 else if (runnery<huntery && !(wallv[hunterx][huntery-1]) && huntery-1>=0) {newhy--;}
                 else if (runnerx>hunterx && !(wallh[hunterx][huntery]) && hunterx+1<x) {newhx++;}
                 else if (runnerx<hunterx && !(wallh[hunterx-1][huntery]) && hunterx-1>=0) {newhx--;}
-                map[hunterx][huntery] = block;
+                if (LightPos){map[hunterx][huntery] = light; LightPos = 0;}
+                else map[hunterx][huntery] = block;
+                if (map[newhx][newhy]==light){LightPos = 1;}
                 hunterx = newhx;
                 huntery = newhy;
                 map[hunterx][huntery] = hunter;
