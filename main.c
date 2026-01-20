@@ -1,4 +1,4 @@
-// Phase 2 Project
+// Phase 4 Project
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -125,13 +125,13 @@ int main () {
           scanf("%d %d" , &x,&y );
      }
     //گرفتن تعداد رانر
-     int rcount = 1;
+     int rcount ;
      int Runner[maxx][maxy] ;
-     //rcount = RHGetter('R',x,y,0);
+     rcount = RHGetter('R',x,y,0);
     //گرفتن تعداد هانتر
-     int hcount = 1 ;
+     int hcount ;
      int Hunter[maxx][maxy] ;
-   // hcount = RHGetter('H',x,y,rcount);
+   hcount = RHGetter('H',x,y,rcount);
 
     //مشخص کردن خونه های هر کاراکتر در مپ
     int ok = 0;
@@ -204,24 +204,13 @@ int main () {
                 break;
             }
         }
-        // if (!ok) {
-        //     printf("!EROR!\n(Your Runner and Hunter input values are not optimal for the map dimensions)\nPlease re-enter the values carefully\n");
-        //     rcount = RHGetter('R',x,y,0);
-        //     hcount = RHGetter('H',x,y,rcount);
-        // }
+        if (!ok) {
+            printf("!EROR!\n(Your Runner and Hunter input values are not optimal for the map dimensions)\nPlease re-enter the values carefully\n");
+            rcount = RHGetter('R',x,y,0);
+            hcount = RHGetter('H',x,y,rcount);
+        }
     }
-    for (int i = 0; i <x; i++)
-        for (int j = 0; j <y; j++)
-            if(Runner[i][j] == 1){
-                runnerx=i ;
-                runnery=j ;
-            }
-    for (int i = 0; i <x; i++)
-        for (int j = 0; j <y; j++)
-            if(Hunter[i][j] == 1){
-                hunterx=i ;
-                huntery=j ;
-            }
+
      int wcount ;
     printf("Please enter the number of walls:\n");
     scanf("%d",&wcount) ;
@@ -278,7 +267,26 @@ int main () {
     if (Wallcounter < wcount) {
         printf("Warning: Only %d walls could be placed safely.\n", Wallcounter);
     }
-
+    int Rx[maxx];
+    int Ry[maxy];
+    // int Hx[maxx];
+    // int Hy[maxy];
+    int num=0;
+    for (int i = 0; i <x; i++)
+        for (int j = 0; j <y; j++)
+            if(Runner[i][j] == 1){
+                Rx[num]=i ;
+                Ry[num]=j ;
+                num++;
+            }
+    // num=0;
+    for (int i = 0; i <x; i++)
+        for (int j = 0; j <y; j++)
+            if(Hunter[i][j] == 1){
+                hunterx=i ;
+                huntery=j ;
+                // num++;
+            }
      //چاپ نقشه با ریلیب
     const int CELL = 50;
     const int WALL_THICK = 4;
@@ -292,27 +300,29 @@ int main () {
 
     int Game = 0;
     int End = 1;
-    char turn ='R';
+    int CurrentRunner = 0;
     int LightPos = 0;
+    char turn ='R';
     while (End) {
         if (WindowShouldClose()) {
             End = 0;
             break;
         }
 
-        int newrx = runnerx ;
-        int newry = runnery ;
         int newhx = hunterx ;
         int newhy = huntery ;
         int RMove = 0 ;
-        if (!Game){
+        if (turn == 'R' && !Game){
+            runnerx = Rx[CurrentRunner] ;
+            runnery = Ry[CurrentRunner] ;
+            int newrx = runnerx ;
+            int newry = runnery ;
             if (IsKeyPressed(KEY_UP))    { newrx--; RMove = 1; }
             if (IsKeyPressed(KEY_DOWN))  { newrx++; RMove = 1; }
             if (IsKeyPressed(KEY_LEFT))  { newry--; RMove = 1; }
             if (IsKeyPressed(KEY_RIGHT)) { newry++; RMove = 1; }
             if (IsKeyPressed(KEY_SPACE)) {RMove = 1;}
             if (RMove) {
-                while (turn=='R') {
                     int valid = 1;
                     if(newrx<0||newrx>=x||newry<0||newry>=y)
                         valid =0 ;
@@ -325,16 +335,22 @@ int main () {
                     }
                     if (valid) {
                         map[runnerx][runnery] = block;
+                        Runner[runnerx][runnery] = 0;
                         runnerx = newrx;
                         runnery = newry;
                         map[runnerx][runnery] = runner;
-                        turn='H';
+                        Runner[runnerx][runnery] = 1;
+                        Rx[CurrentRunner] = runnerx;
+                        Ry[CurrentRunner] = runnery;
+                        CurrentRunner++;
+                        if (CurrentRunner==rcount) {
+                            CurrentRunner = 0;
+                            turn='H';
+                        }
                     }
                     else {
                         ErrorTimer=60 ;
-                        break;
                     }
-                }
             }
             Game = GameState(lightx,lighty,runnerx,runnery,hunterx,huntery);
             if (turn=='H' && !Game) {
