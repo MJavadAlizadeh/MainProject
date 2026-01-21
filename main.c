@@ -52,10 +52,7 @@ int dist(int x1, int y1, int x2, int y2) {
 
     if (y1 > y2) y1 -= y2;
     else y1 = y2 - y1;
-    if (x1+y1 >= 2)
-        return 1;
-    else
-        return 0;
+    return (x1+y1);
 }
 
 //تابع ریست ارایه های مربوط به مپ
@@ -107,6 +104,20 @@ int GameState(int Lx,int Ly,int Rx,int Ry,int Hx,int Hy) {
     if (Hx==Rx && Hy==Ry) return 2;
     else if (Lx==Rx && Ly==Ry) return 1;
     else return 0;
+}
+//تابع پیدا کردن نزدیک ترین رانر به هانتر
+int ClosestRunner(int Rx[],int Ry[],int rcount,int Hx,int Hy) {
+    int closest =999;
+    int distance;
+    int RNum;
+    for (int i =0 ; i<rcount ; i++) {
+        distance = dist(Rx[i],Ry[i],Hx,Hy);
+        if (distance < closest) {
+            closest = distance;
+            RNum = i;
+        }
+    }
+    return RNum;
 }
 
 int main () {
@@ -160,7 +171,7 @@ int main () {
                     b = (rand() % y);
                     LDistance = dist(a,b,lightx,lighty);
                     try++;
-                }while (((a==lightx && b==lighty) || Runner[a][b]==1 || LDistance == 0 ) && try < TryLimit );
+                }while (((a==lightx && b==lighty) || Runner[a][b]==1 || LDistance <2 ) && try < TryLimit );
                 map[a][b] = runner ;
                 Runner[a][b] = 1;
                 CharactersCount++;
@@ -177,13 +188,13 @@ int main () {
                     LDistance = dist(a,b,lightx,lighty);
                     if ((a==lightx && b==lighty) || Runner[a][b]==1 || Hunter[a][b]==1)
                         sw=1;
-                    if (!LDistance)
+                    if (LDistance <2)
                         sw=1;
                     for (int i = 0; i < x; i++) {
                         for (int j = 0; j < y; j++) {
                             if (Runner[i][j] == 1) {
                                 RDistance=dist(a, b, i, j);
-                                if (!RDistance)
+                                if (RDistance < 2)
                                     sw=1;
                             }
                         }
@@ -363,10 +374,11 @@ int main () {
                 huntery = Hy[CurrentHunter];
                 int newhx = hunterx ;
                 int newhy = huntery ;
-                if (runnery>huntery && !(wallv[hunterx][huntery]) && huntery+1<y) {newhy++;}
-                else if (runnery<huntery && !(wallv[hunterx][huntery-1]) && huntery-1>=0) {newhy--;}
-                else if (runnerx>hunterx && !(wallh[hunterx][huntery]) && hunterx+1<x) {newhx++;}
-                else if (runnerx<hunterx && !(wallh[hunterx-1][huntery]) && hunterx-1>=0) {newhx--;}
+                int Rnum = ClosestRunner(Rx,Ry,rcount,hunterx,huntery);
+                if (Ry[Rnum]>huntery && !(wallv[hunterx][huntery]) && huntery+1<y) {newhy++;}
+                else if (Ry[Rnum]<huntery && !(wallv[hunterx][huntery-1]) && huntery-1>=0) {newhy--;}
+                else if (Rx[Rnum]>hunterx && !(wallh[hunterx][huntery]) && hunterx+1<x) {newhx++;}
+                else if (Rx[Rnum]<hunterx && !(wallh[hunterx-1][huntery]) && hunterx-1>=0) {newhx--;}
                 if (LightPos){map[hunterx][huntery] = light; LightPos = 0;}
                 else map[hunterx][huntery] = block;
                 if (map[newhx][newhy]==light){LightPos = 1;}
