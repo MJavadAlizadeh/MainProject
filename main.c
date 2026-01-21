@@ -269,8 +269,8 @@ int main () {
     }
     int Rx[maxx];
     int Ry[maxy];
-    // int Hx[maxx];
-    // int Hy[maxy];
+    int Hx[maxx];
+    int Hy[maxy];
     int num=0;
     for (int i = 0; i <x; i++)
         for (int j = 0; j <y; j++)
@@ -279,20 +279,20 @@ int main () {
                 Ry[num]=j ;
                 num++;
             }
-    // num=0;
+    num=0;
     for (int i = 0; i <x; i++)
         for (int j = 0; j <y; j++)
             if(Hunter[i][j] == 1){
-                hunterx=i ;
-                huntery=j ;
-                // num++;
+                Hx[num]=i ;
+                Hy[num]=j ;
+                num++;
             }
      //چاپ نقشه با ریلیب
     const int CELL = 50;
     const int WALL_THICK = 4;
     int ErrorTimer = 0 ;
     int EndTimer = 0;
-
+    float HunterDelay=0.0f;
     int screenW = y * CELL;
     int screenH = x * CELL;
     InitWindow(screenW, screenH, "board");
@@ -301,6 +301,7 @@ int main () {
     int Game = 0;
     int End = 1;
     int CurrentRunner = 0;
+    int CurrentHunter = 0;
     int LightPos = 0;
     char turn ='R';
     while (End) {
@@ -309,10 +310,8 @@ int main () {
             break;
         }
 
-        int newhx = hunterx ;
-        int newhy = huntery ;
         int RMove = 0 ;
-        if (turn == 'R' && !Game){
+        if (turn == 'R' && !Game) {
             runnerx = Rx[CurrentRunner] ;
             runnery = Ry[CurrentRunner] ;
             int newrx = runnerx ;
@@ -323,37 +322,47 @@ int main () {
             if (IsKeyPressed(KEY_RIGHT)) { newry++; RMove = 1; }
             if (IsKeyPressed(KEY_SPACE)) {RMove = 1;}
             if (RMove) {
-                    int valid = 1;
-                    if(newrx<0||newrx>=x||newry<0||newry>=y)
-                        valid =0 ;
-                    if(valid){
-                        if(newrx==(runnerx-1) && wallh[runnerx-1][runnery]) valid=0 ;
-                        if(newrx==(runnerx+1) && wallh[runnerx][runnery]) valid=0 ;
-                        if(newry==(runnery-1) && wallv[runnerx][runnery-1]) valid=0 ;
-                        if(newry==(runnery+1) && wallv[runnerx][runnery]) valid=0 ;
+                int valid = 1;
+                if(newrx<0||newrx>=x||newry<0||newry>=y)
+                    valid =0 ;
+                if(valid){
+                    if(newrx==(runnerx-1) && wallh[runnerx-1][runnery]) valid=0 ;
+                    if(newrx==(runnerx+1) && wallh[runnerx][runnery]) valid=0 ;
+                    if(newry==(runnery-1) && wallv[runnerx][runnery-1]) valid=0 ;
+                    if(newry==(runnery+1) && wallv[runnerx][runnery]) valid=0 ;
 
+                }
+                if (valid) {
+                    map[runnerx][runnery] = block;
+                    Runner[runnerx][runnery] = 0;
+                    runnerx = newrx;
+                    runnery = newry;
+                    map[runnerx][runnery] = runner;
+                    Runner[runnerx][runnery] = 1;
+                    Rx[CurrentRunner] = runnerx;
+                    Ry[CurrentRunner] = runnery;
+                    CurrentRunner++;
+                    if (CurrentRunner==rcount) {
+                        CurrentRunner = 0;
+                        turn='H';
+                        HunterDelay=0.5f;
                     }
-                    if (valid) {
-                        map[runnerx][runnery] = block;
-                        Runner[runnerx][runnery] = 0;
-                        runnerx = newrx;
-                        runnery = newry;
-                        map[runnerx][runnery] = runner;
-                        Runner[runnerx][runnery] = 1;
-                        Rx[CurrentRunner] = runnerx;
-                        Ry[CurrentRunner] = runnery;
-                        CurrentRunner++;
-                        if (CurrentRunner==rcount) {
-                            CurrentRunner = 0;
-                            turn='H';
-                        }
-                    }
-                    else {
-                        ErrorTimer=60 ;
-                    }
+                }
+                else {
+                    ErrorTimer=60 ;
+                }
             }
+        }
             Game = GameState(lightx,lighty,runnerx,runnery,hunterx,huntery);
-            if (turn=='H' && !Game) {
+            if (HunterDelay > 0) {
+                HunterDelay -= GetFrameTime();
+            }
+
+            if (turn=='H' && !Game && HunterDelay<=0) {
+                hunterx = Hx[CurrentHunter];
+                huntery = Hy[CurrentHunter];
+                int newhx = hunterx ;
+                int newhy = huntery ;
                 if (runnery>huntery && !(wallv[hunterx][huntery]) && huntery+1<y) {newhy++;}
                 else if (runnery<huntery && !(wallv[hunterx][huntery-1]) && huntery-1>=0) {newhy--;}
                 else if (runnerx>hunterx && !(wallh[hunterx][huntery]) && hunterx+1<x) {newhx++;}
@@ -361,13 +370,20 @@ int main () {
                 if (LightPos){map[hunterx][huntery] = light; LightPos = 0;}
                 else map[hunterx][huntery] = block;
                 if (map[newhx][newhy]==light){LightPos = 1;}
+                Hunter[hunterx][huntery]=0;
                 hunterx = newhx;
                 huntery = newhy;
                 map[hunterx][huntery] = hunter;
-                turn='R';
+                Hunter[hunterx][huntery] = 1;
+                Hx[CurrentHunter] = hunterx;
+                Hy[CurrentHunter] = huntery;
+                CurrentHunter++;
+                if (CurrentHunter==hcount) {
+                    CurrentHunter = 0;
+                    turn='R';
+                }
             }
             Game = GameState(lightx,lighty,runnerx,runnery,hunterx,huntery);
-        }
         BeginDrawing();
         ClearBackground(WHITE);
 
