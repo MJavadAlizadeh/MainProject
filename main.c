@@ -322,6 +322,7 @@ int main () {
         }
 
         int RMove = 0 ;
+        int NoMovement = 0;
         if (turn == 'R' && !Game) {
             runnerx = Rx[CurrentRunner] ;
             runnery = Ry[CurrentRunner] ;
@@ -331,19 +332,22 @@ int main () {
             if (IsKeyPressed(KEY_DOWN))  { newrx++; RMove = 1; }
             if (IsKeyPressed(KEY_LEFT))  { newry--; RMove = 1; }
             if (IsKeyPressed(KEY_RIGHT)) { newry++; RMove = 1; }
-            if (IsKeyPressed(KEY_SPACE)) {RMove = 1;}
+            if (IsKeyPressed(KEY_SPACE)) {NoMovement = 1; RMove = 1;}
             if (RMove) {
                 int valid = 1;
                 if(newrx<0||newrx>=x||newry<0||newry>=y)
                     valid =0 ;
-                if(valid){
-                    if(newrx==(runnerx-1) && wallh[runnerx-1][runnery]) valid=0 ;
+                if(valid && !NoMovement){
+                    if(newrx==(runnerx-1) && wallh[runnerx-1][runnery] ) valid=0 ;
                     if(newrx==(runnerx+1) && wallh[runnerx][runnery]) valid=0 ;
                     if(newry==(runnery-1) && wallv[runnerx][runnery-1]) valid=0 ;
                     if(newry==(runnery+1) && wallv[runnerx][runnery]) valid=0 ;
 
                 }
-                if (valid) {
+                if (valid && !NoMovement) {
+                    if (map[newrx][newry]== runner) valid = 0;
+                }
+                if (valid || NoMovement) {
                     map[runnerx][runnery] = block;
                     Runner[runnerx][runnery] = 0;
                     runnerx = newrx;
@@ -375,10 +379,10 @@ int main () {
                 int newhx = hunterx ;
                 int newhy = huntery ;
                 int Rnum = ClosestRunner(Rx,Ry,rcount,hunterx,huntery);
-                if (Ry[Rnum]>huntery && !(wallv[hunterx][huntery]) && huntery+1<y) {newhy++;}
-                else if (Ry[Rnum]<huntery && !(wallv[hunterx][huntery-1]) && huntery-1>=0) {newhy--;}
-                else if (Rx[Rnum]>hunterx && !(wallh[hunterx][huntery]) && hunterx+1<x) {newhx++;}
-                else if (Rx[Rnum]<hunterx && !(wallh[hunterx-1][huntery]) && hunterx-1>=0) {newhx--;}
+                if (Ry[Rnum]>huntery && !(wallv[hunterx][huntery]) && huntery+1<y && map[newhx][newhy+1]!=hunter) {newhy++;}
+                else if (Ry[Rnum]<huntery && !(wallv[hunterx][huntery-1]) && huntery-1>=0 && map[newhx][newhy-1]!=hunter) {newhy--;}
+                else if (Rx[Rnum]>hunterx && !(wallh[hunterx][huntery]) && hunterx+1<x && map[newhx+1][newhy]!=hunter) {newhx++;}
+                else if (Rx[Rnum]<hunterx && !(wallh[hunterx-1][huntery]) && hunterx-1>=0 && map[newhx-1][newhy]!=hunter) {newhx--;}
                 if (LightPos){map[hunterx][huntery] = light; LightPos = 0;}
                 else map[hunterx][huntery] = block;
                 if (map[newhx][newhy]==light){LightPos = 1;}
