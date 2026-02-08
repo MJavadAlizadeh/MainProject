@@ -100,13 +100,50 @@ int RHGetter(char input,int x ,int y,int MainRcount) {
     }
 }
 //تابع تشخیص پایان بازی با گرفتن مختصات 3 کاراکتر اصلی
-int GameState(int Lx,int Ly,int Rx,int Ry,int Hx,int Hy) {
-    if (Hx==Rx && Hy==Ry) return 2;
-    else if (Lx==Rx && Ly==Ry) return 1;
+// int GameState(int Lx,int Ly,int Rx,int Ry,int Hx,int Hy) {
+//     if (Hx==Rx && Hy==Ry) return 2;
+//     else if (Lx==Rx && Ly==Ry) return 1;
+//     else return 0;
+// }
+
+int GameState(int Lx,int Ly,int Rx[],int Ry[],int *rcount,int Hx[],int Hy[],int hcount,int *Reachedlight,int Runner[][maxy],char map[][maxy],int RWin) {
+    int R = *rcount ;
+    int dead[maxx];
+    for (int i=0 ; i<R ; i++) {
+        dead[i] = 0 ;
+    }
+    for (int i=0 ; i<R ; i++) {
+        for (int j=0 ; j<hcount ; j++) {
+            if (Rx[i]==Hx[j] && Ry[i]==Hy[j]) {
+                Runner[Rx[i]][Ry[i]] = 0;
+                dead[i]=1;
+            }
+        }
+    }
+    for (int i=0 ; i<R ; i++) {
+        if (Rx[i] == Lx && Ry[i] == Ly && dead[i]!=1) {
+            Runner[Rx[i]][Ry[i]] = 0;
+            map[Lx][Ly] = light;
+            dead[i]=2;
+            *Reachedlight += 1;
+        }
+    }
+    for (int i=0 ; i<*rcount ; i++) {
+        if (dead[i]) {
+            for (int k=i ; k<*rcount-1 ; k++) {
+                Rx[k] = Rx[k+1] ;
+                Ry[k] = Ry[k+1] ;
+            }
+            *rcount -= 1;
+            i--;
+        }
+    }
+    if (*Reachedlight >= RWin) return 1;
+    else if (*rcount == 0 && *Reachedlight<RWin) return 2;
     else return 0;
 }
 //تابع پیدا کردن نزدیک ترین رانر به هانتر
-int ClosestRunner(int Rx[],int Ry[],int rcount,int Hx,int Hy) {
+int ClosestRunner(int Rx[],int Ry[],int rcount,int Hx,int Hy){
     int closest =999;
     int distance;
     int RNum;
@@ -313,7 +350,15 @@ int main () {
     int End = 1;
     int CurrentRunner = 0;
     int CurrentHunter = 0;
-    int LightPos = 0;
+    int HunterOnLight[hcount];
+    for (int i = 0; i < hcount; i++) {
+        HunterOnLight[i] = 0;
+    }
+    int RWin = rcount/3;
+    if (rcount%3 != 0) {
+        RWin += 1;
+    }
+    int ReachedLamp = 0;
     char turn ='R';
     while (End) {
         if (WindowShouldClose()) {
@@ -368,7 +413,7 @@ int main () {
                 }
             }
         }
-            Game = GameState(lightx,lighty,runnerx,runnery,hunterx,huntery);
+            Game = GameState(lightx,lighty,Rx,Ry,&rcount,Hx,Hy,hcount,&ReachedLamp,Runner,map,RWin);
             if (HunterDelay > 0) {
                 HunterDelay -= GetFrameTime();
             }
@@ -383,9 +428,12 @@ int main () {
                 else if (Ry[Rnum]<huntery && !(wallv[hunterx][huntery-1]) && huntery-1>=0 && map[newhx][newhy-1]!=hunter) {newhy--;}
                 else if (Rx[Rnum]>hunterx && !(wallh[hunterx][huntery]) && hunterx+1<x && map[newhx+1][newhy]!=hunter) {newhx++;}
                 else if (Rx[Rnum]<hunterx && !(wallh[hunterx-1][huntery]) && hunterx-1>=0 && map[newhx-1][newhy]!=hunter) {newhx--;}
-                if (LightPos){map[hunterx][huntery] = light; LightPos = 0;}
+                if (HunterOnLight[CurrentHunter]) {
+                    map[hunterx][huntery] = light;
+                    HunterOnLight[CurrentHunter] = 0;
+                }
                 else map[hunterx][huntery] = block;
-                if (map[newhx][newhy]==light){LightPos = 1;}
+                if (map[newhx][newhy]==light){HunterOnLight[CurrentHunter] = 1;}
                 Hunter[hunterx][huntery]=0;
                 hunterx = newhx;
                 huntery = newhy;
@@ -399,7 +447,7 @@ int main () {
                     turn='R';
                 }
             }
-            Game = GameState(lightx,lighty,runnerx,runnery,hunterx,huntery);
+            Game = GameState(lightx,lighty,Rx,Ry,&rcount,Hx,Hy,hcount,&ReachedLamp,Runner,map,RWin);
         BeginDrawing();
         ClearBackground(WHITE);
 
@@ -479,7 +527,4 @@ int main () {
         }
         EndDrawing();
     }
-
-
-
-     }
+}
