@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <raylib.h>
-
+//متغییر ها
 const int maxx = 100 ;
 const int maxy = 100 ;
 char hunter = 'H' ;
@@ -12,6 +12,48 @@ char light = 'L' ;
 char block = '.' ;
 char V = '|' ;
 char H = '_' ;
+
+//استراکت ها
+struct locate {
+    int x,y;
+};
+struct Runner {
+    struct locate L;
+    int alive;
+    int reached;
+};
+struct Hunter {
+    struct locate L;
+    int OnLight;
+};
+struct Wall {
+    int h[maxx][maxy];
+    int v[maxx][maxy];
+};
+struct TempWall {
+    int h[maxx][maxy];
+    int v[maxx][maxy];
+};
+struct Board {
+    char map[maxx][maxy];
+    struct locate light;
+    int IsRunner[maxx][maxy];
+    int IsHunter[maxx][maxy];
+    struct Wall walls;
+    struct TempWall tempWalls;
+};
+struct Data {
+    int x,y;
+    int rcount,hcount;
+    int CurrentRunner;
+    int CurrentHunter;
+    int MaxTempWall;
+    int UsedTempWall;
+    int ReachedLamp;
+    int RWin;
+    char turn;
+    int game;
+};
 
 //تابع DFS
 void dfs(int i, int j, int wallh[][maxy], int wallv[][maxy],int visited[][maxy],int x ,int y) {
@@ -159,53 +201,54 @@ int ClosestRunner(int Rx[],int Ry[],int rcount,int Hx,int Hy){
 
 int main () {
     srand(time(NULL));
+    struct Board board;
+    struct Data data ;
+    struct Runner runner[maxx*maxy];
+    struct Hunter hunter[maxx*maxy];
     int wallh[maxx][maxy];
     int wallv[maxx][maxy];
     int visited[maxx][maxy];
     char map[maxx][maxy] ;
     int lightx,lighty,runnerx,runnery,hunterx,huntery ;
     //گرفتن ابعاد مپ
-     int x , y ;
      printf("Please enter size of map :\n ");
-     scanf("%d %d" , &x,&y );
-     while ((x<2 || y<2) || (x==2 && y==2)) {
+     scanf("%d %d" ,&data.x,&data.y );
+     while ((data.x<2 || data.y<2) || (data.x==2 && data.y==2)) {
           printf("!ERROR!\n(The map size must be greater than 2*2.)\nPlease enter again:\n");
-          scanf("%d %d" , &x,&y );
+          scanf("%d %d" ,&data.x,&data.y );
      }
     //گرفتن تعداد رانر
-     int rcount ;
      int Runner[maxx][maxy] ;
-     rcount = RHGetter('R',x,y,0);
+     data.rcount = RHGetter('R',data.x,data.y,0);
     //گرفتن تعداد هانتر
-     int hcount ;
      int Hunter[maxx][maxy] ;
-   hcount = RHGetter('H',x,y,rcount);
+   data.hcount = RHGetter('H',data.x,data.y,data.rcount);
 
     //مشخص کردن خونه های هر کاراکتر در مپ
     int ok = 0;
     int TryLimit = 500;
     while (!ok) {
         int CharactersTries = 0;
-        int CharactersSum = rcount + hcount + 1 ;
+        int CharactersSum = data.rcount + data.hcount + 1 ;
         int LDistance,RDistance;
         while (CharactersTries<TryLimit ) {
             int CharactersCount = 0;
             CharactersTries++;
             //پاکسازی ارایه برای مشخص کردن مشخصات کاراکتر ها
-            MapReset(map,block,x,y) ;
-            RHWReset(Hunter,x,y) ;
-            RHWReset(Runner,x,y) ;
+            MapReset(map,block,data.x,data.y) ;
+            RHWReset(Hunter,data.x,data.y) ;
+            RHWReset(Runner,data.x,data.y) ;
             //مشخص کردن مشخصات چراغ
-            lightx = (rand() % x);
-            lighty = (rand() % y);
+            lightx = (rand() % data.x);
+            lighty = (rand() % data.y);
             map[lightx][lighty] = light ;
             CharactersCount++;
             //مشخص کردن مشخصات رانر ها
-            for(int i=0 ; i<rcount; i++) {
+            for(int i=0 ; i<data.rcount; i++) {
                 int a,b,try=0;
                  do{
-                    a = (rand() % x);
-                    b = (rand() % y);
+                    a = (rand() % data.x);
+                    b = (rand() % data.y);
                     LDistance = dist(a,b,lightx,lighty);
                     try++;
                 }while (((a==lightx && b==lighty) || Runner[a][b]==1 || LDistance <2 ) && try < TryLimit );
@@ -214,9 +257,9 @@ int main () {
                 CharactersCount++;
             }
             //مشخص کردن مشخصات هانتر ها
-            for(int k=0 ; k<hcount ; k++) {
-                int a = (rand() % x);
-                int b = (rand() % y);
+            for(int k=0 ; k<data.hcount ; k++) {
+                int a = (rand() % data.x);
+                int b = (rand() % data.y);
                 int sw=1;
                 int try=0;
                 while (sw && try<TryLimit) {
@@ -227,8 +270,8 @@ int main () {
                         sw=1;
                     if (LDistance <2)
                         sw=1;
-                    for (int i = 0; i < x; i++) {
-                        for (int j = 0; j < y; j++) {
+                    for (int i = 0; i < data.x; i++) {
+                        for (int j = 0; j < data.y; j++) {
                             if (Runner[i][j] == 1) {
                                 RDistance=dist(a, b, i, j);
                                 if (RDistance < 2)
@@ -237,8 +280,8 @@ int main () {
                         }
                     }
                     if (sw) {
-                        a = (rand() % x);
-                        b = (rand() % y);
+                        a = (rand() % data.x);
+                        b = (rand() % data.y);
                     }
                 }
                 if (!sw) {
@@ -254,21 +297,21 @@ int main () {
         }
         if (!ok) {
             printf("!EROR!\n(Your Runner and Hunter input values are not optimal for the map dimensions)\nPlease re-enter the values carefully\n");
-            rcount = RHGetter('R',x,y,0);
-            hcount = RHGetter('H',x,y,rcount);
+            data.rcount = RHGetter('R',data.x,data.y,0);
+            data.hcount = RHGetter('H',data.x,data.y,data.rcount);
         }
     }
 
      int wcount ;
     printf("Please enter the number of walls:\n");
     scanf("%d",&wcount) ;
-     while(wcount<0||wcount>((x-1)*(y-1))) {
+     while(wcount<0||wcount>((data.x-1)*(data.y-1))) {
          printf("!ERROR!\n(Invalid number of walls)\nPlease enter again:\n");
          scanf ("%d",&wcount) ;
      }
 
-     RHWReset(wallh,x,y);
-     RHWReset(wallv,x,y);
+     RHWReset(wallh,data.x,data.y);
+     RHWReset(wallv,data.x,data.y);
 
      // اجرای رندوم دیوار ها با توابع dfs  و Connected
     int Wallcounter = 0;
@@ -281,15 +324,15 @@ int main () {
         int i, j;
 
         if (choice) {
-            i = rand() % (x - 1);
-            j = rand() % y;
+            i = rand() % (data.x - 1);
+            j = rand() % data.y;
 
             if (wallh[i][j] == 1)
                 continue;
 
             wallh[i][j] = 1;
 
-            if (!Connected(wallh, wallv,visited,x,y)) {
+            if (!Connected(wallh, wallv,visited,data.x,data.y)) {
                 wallh[i][j] = 0;
             } else {
                 Wallcounter++;
@@ -297,15 +340,15 @@ int main () {
 
         } else {
 
-            i = rand() % x;
-            j = rand() % (y - 1);
+            i = rand() % data.x;
+            j = rand() % (data.y - 1);
 
             if (wallv[i][j] == 1)
                 continue;
 
             wallv[i][j] = 1;
 
-            if (!Connected(wallh, wallv,visited,x,y)) {
+            if (!Connected(wallh, wallv,visited,data.x,data.y)) {
                 wallv[i][j] = 0;
             } else {
                 Wallcounter++;
@@ -320,16 +363,16 @@ int main () {
     int Hx[maxx];
     int Hy[maxy];
     int num=0;
-    for (int i = 0; i <x; i++)
-        for (int j = 0; j <y; j++)
+    for (int i = 0; i <data.x; i++)
+        for (int j = 0; j <data.y; j++)
             if(Runner[i][j] == 1){
                 Rx[num]=i ;
                 Ry[num]=j ;
                 num++;
             }
     num=0;
-    for (int i = 0; i <x; i++)
-        for (int j = 0; j <y; j++)
+    for (int i = 0; i <data.x; i++)
+        for (int j = 0; j <data.y; j++)
             if(Hunter[i][j] == 1){
                 Hx[num]=i ;
                 Hy[num]=j ;
@@ -341,8 +384,8 @@ int main () {
     int ErrorTimer = 0 ;
     int EndTimer = 0;
     float HunterDelay=0.0f;
-    int screenW = y * CELL;
-    int screenH = x * CELL;
+    int screenW = data.y * CELL;
+    int screenH = data.x * CELL;
     InitWindow(screenW, screenH, "board");
     SetTargetFPS(60);
 
@@ -350,12 +393,12 @@ int main () {
     int End = 1;
     int CurrentRunner = 0;
     int CurrentHunter = 0;
-    int HunterOnLight[hcount];
-    for (int i = 0; i < hcount; i++) {
+    int HunterOnLight[data.hcount];
+    for (int i = 0; i < data.hcount; i++) {
         HunterOnLight[i] = 0;
     }
-    int RWin = rcount/3;
-    if (rcount%3 != 0) {
+    int RWin = data.rcount/3;
+    if (data.rcount%3 != 0) {
         RWin += 1;
     }
     int ReachedLamp = 0;
@@ -380,7 +423,7 @@ int main () {
             if (IsKeyPressed(KEY_SPACE)) {NoMovement = 1; RMove = 1;}
             if (RMove) {
                 int valid = 1;
-                if(newrx<0||newrx>=x||newry<0||newry>=y)
+                if(newrx<0||newrx>=data.x||newry<0||newry>=data.y)
                     valid =0 ;
                 if(valid && !NoMovement){
                     if(newrx==(runnerx-1) && wallh[runnerx-1][runnery] ) valid=0 ;
@@ -402,7 +445,7 @@ int main () {
                     Rx[CurrentRunner] = runnerx;
                     Ry[CurrentRunner] = runnery;
                     CurrentRunner++;
-                    if (CurrentRunner==rcount) {
+                    if (CurrentRunner==data.rcount) {
                         CurrentRunner = 0;
                         turn='H';
                         HunterDelay=0.5f;
@@ -413,7 +456,7 @@ int main () {
                 }
             }
         }
-            Game = GameState(lightx,lighty,Rx,Ry,&rcount,Hx,Hy,hcount,&ReachedLamp,Runner,map,RWin);
+            Game = GameState(lightx,lighty,Rx,Ry,&data.rcount,Hx,Hy,data.hcount,&ReachedLamp,Runner,map,RWin);
             if (HunterDelay > 0) {
                 HunterDelay -= GetFrameTime();
             }
@@ -423,10 +466,10 @@ int main () {
                 huntery = Hy[CurrentHunter];
                 int newhx = hunterx ;
                 int newhy = huntery ;
-                int Rnum = ClosestRunner(Rx,Ry,rcount,hunterx,huntery);
-                if (Ry[Rnum]>huntery && !(wallv[hunterx][huntery]) && huntery+1<y && map[newhx][newhy+1]!=hunter) {newhy++;}
+                int Rnum = ClosestRunner(Rx,Ry,data.rcount,hunterx,huntery);
+                if (Ry[Rnum]>huntery && !(wallv[hunterx][huntery]) && huntery+1<data.y && map[newhx][newhy+1]!=hunter) {newhy++;}
                 else if (Ry[Rnum]<huntery && !(wallv[hunterx][huntery-1]) && huntery-1>=0 && map[newhx][newhy-1]!=hunter) {newhy--;}
-                else if (Rx[Rnum]>hunterx && !(wallh[hunterx][huntery]) && hunterx+1<x && map[newhx+1][newhy]!=hunter) {newhx++;}
+                else if (Rx[Rnum]>hunterx && !(wallh[hunterx][huntery]) && hunterx+1<data.x && map[newhx+1][newhy]!=hunter) {newhx++;}
                 else if (Rx[Rnum]<hunterx && !(wallh[hunterx-1][huntery]) && hunterx-1>=0 && map[newhx-1][newhy]!=hunter) {newhx--;}
                 if (HunterOnLight[CurrentHunter]) {
                     map[hunterx][huntery] = light;
@@ -442,18 +485,18 @@ int main () {
                 Hx[CurrentHunter] = hunterx;
                 Hy[CurrentHunter] = huntery;
                 CurrentHunter++;
-                if (CurrentHunter==hcount) {
+                if (CurrentHunter==data.hcount) {
                     CurrentHunter = 0;
                     turn='R';
                 }
             }
-            Game = GameState(lightx,lighty,Rx,Ry,&rcount,Hx,Hy,hcount,&ReachedLamp,Runner,map,RWin);
+            Game = GameState(lightx,lighty,Rx,Ry,&data.rcount,Hx,Hy,data.hcount,&ReachedLamp,Runner,map,RWin);
         BeginDrawing();
         ClearBackground(WHITE);
 
 
-        for (int i = 0; i < x; i++) {
-            for (int j = 0; j < y; j++) {
+        for (int i = 0; i < data.x; i++) {
+            for (int j = 0; j < data.y; j++) {
                 Color bg = WHITE;
                 char ch = map[i][j];
                 if (ch == runner || ch == hunter || ch == light) {
@@ -464,8 +507,8 @@ int main () {
         }
 
 
-        for (int i = 0; i < x-1; i++) {
-            for (int j = 0; j < y; j++) {
+        for (int i = 0; i < data.x-1; i++) {
+            for (int j = 0; j < data.y; j++) {
                 Color lineColor = wallh[i][j] ? BLACK : GRAY;
                 DrawRectangle(j*CELL, i*CELL + CELL - WALL_THICK/2,
                               CELL, WALL_THICK, lineColor);
@@ -473,8 +516,8 @@ int main () {
         }
 
 
-        for (int i = 0; i < x; i++) {
-            for (int j = 0; j < y-1; j++) {
+        for (int i = 0; i < data.x; i++) {
+            for (int j = 0; j < data.y-1; j++) {
                 Color lineColor = wallv[i][j] ? BLACK : GRAY;
                 DrawRectangle(j*CELL + CELL - WALL_THICK/2, i*CELL,
                               WALL_THICK, CELL, lineColor);
@@ -482,8 +525,8 @@ int main () {
         }
 
 
-        for (int i = 0; i < x; i++) {
-            for (int j = 0; j < y; j++) {
+        for (int i = 0; i < data.x; i++) {
+            for (int j = 0; j < data.y; j++) {
                 char ch = map[i][j];
                 if (ch == runner) {
                     DrawCircle(j*CELL + CELL/2, i*CELL + CELL/2, CELL/3, BLUE);
@@ -505,7 +548,7 @@ int main () {
         }
         if (Game) {
             ClearBackground(WHITE);
-            DrawRectangle(0, 0, CELL*y, CELL*x, WHITE);
+            DrawRectangle(0, 0, CELL*data.y, CELL*data.x, WHITE);
             if (Game == 1) {
                 DrawText("YOU WIN",
                          screenW/2 - MeasureText("YOU WIN", 40)/2,
