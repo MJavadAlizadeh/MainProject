@@ -52,6 +52,7 @@ struct Data {
     int MaxTempWall;
     int UsedTempWall;
     int ReachedLamp;
+    int DeadRunners;
     int RWin;
     char turn;
     int game;
@@ -100,28 +101,28 @@ int dist(int x1, int y1, int x2, int y2) {
 }
 
 //تابع ریست ارایه های مربوط به مپ
-void MapReset(char map[][maxy],char input ,int x ,int y) {
-    for (int i=0 ; i<x ; i++ ){
-        for(int j=0 ; j<y ; j++){
-            map[i][j] = input ;
+void MapReset(struct Board *board,struct Data data,char input) {
+    for (int i=0 ; i<data.x ; i++ ){
+        for(int j=0 ; j<data.y ; j++){
+            board->map[i][j] = input ;
         }
     }
 }
 //تابع ریست ارایه های مربوط به رانر و هانتر و دیوار ها
-void RHWReset(int map[][maxy],int x ,int y) {
-    for (int i=0 ; i<x ; i++ ){
-        for(int j=0 ; j<y ; j++){
+void RHWReset(int map[][maxy],struct Data data) {
+    for (int i=0 ; i<data.x ; i++ ){
+        for(int j=0 ; j<data.y ; j++){
             map[i][j] = 0 ;
         }
     }
 }
 //تابع گیرنده تعداد هانتر و رانر
-int RHGetter(char input,int x ,int y,int MainRcount) {
+int RHGetter(char input,struct Data data,int MainRcount) {
     int rcount,hcount;
     if (input == 'R') {
         printf("Please enter the number of runners:\n");
         scanf ("%d",&rcount ) ;
-        while (rcount<1 || rcount>(x*y)-2) {
+        while (rcount<1 || rcount>(data.x*data.y)-2) {
             if (rcount<1)
                 printf("!ERROR!\n(Invalid number of runners)\nPlease enter again:\n");
             else
@@ -133,7 +134,7 @@ int RHGetter(char input,int x ,int y,int MainRcount) {
     else if (input == 'H') {
         printf("Please enter the number of hunters:\n");
         scanf ("%d",&hcount) ;
-        while (hcount<1 || hcount>((x*y)-MainRcount-1)) {
+        while (hcount<1 || hcount>((data.x*data.y)-MainRcount-1)) {
             if (hcount<1)
                 printf("!ERROR!\n(Invalid number of hunters)\nPlease enter again:\n");
             else
@@ -150,48 +151,44 @@ int RHGetter(char input,int x ,int y,int MainRcount) {
 //     else return 0;
 // }
 
-int GameState(int Lx,int Ly,struct Runner runner[],int *rcount,struct Hunter hunter[],int hcount,int *Reachedlight,int Runner[][maxy],char map[][maxy],int RWin) {
-    int R = *rcount ;
-    int dead[maxx];
-    for (int i=0 ; i<R ; i++) {
-        dead[i] = 0 ;
-    }
-    for (int i=0 ; i<R ; i++) {
-        for (int j=0 ; j<hcount ; j++) {
-            if (runner[i].L.x==hunter[j].L.x && runner[i].L.y==hunter[j].L.y) {
-                Runner[runner[i].L.x][runner[i].L.y] = 0;
-                dead[i]=1;
+int GameState(struct Board *board,struct Data *data,struct Runner runner[],struct Hunter hunter[]) {
+
+    for (int i=0 ; i<data->rcount ; i++) {
+        for (int j=0 ; j<data->hcount ; j++) {
+            if (runner[i].L.x==hunter[j].L.x && runner[i].L.y==hunter[j].L.y && runner[i].alive==1) {
+                board->IsRunner[runner[i].L.x][runner[i].L.y] = 0;
+                runner[i].alive=0;
+                data->DeadRunners++;
+                if (hunter[j].OnLight) {
+                    board->map[runner[i].L.x][runner[i].L.y] = light;
+                }
+                else {
+                    board->map[runner[i].L.x][runner[i].L.y] = Hunter_Ch;
+                }
             }
         }
     }
-    for (int i=0 ; i<R ; i++) {
-        if (runner[i].L.x == Lx && runner[i].L.y == Ly && dead[i]!=1) {
-            Runner[runner[i].L.x][runner[i].L.y] = 0;
-            map[Lx][Ly] = light;
-            dead[i]=2;
-            *Reachedlight += 1;
+    for (int i=0 ; i<data->rcount ; i++) {
+        if (runner[i].L.x == board->light.x && runner[i].L.y == board->light.y && runner[i].alive==1) {
+            board->IsRunner[runner[i].L.x][runner[i].L.y] = 0;
+            board->map[runner[i].L.x][runner[i].L.y] = light;
+            runner[i].reached=1;
+            runner[i].alive=0;
+            data->ReachedLamp++;
+            data->DeadRunners++;
         }
     }
-    for (int i=0 ; i<*rcount ; i++) {
-        if (dead[i]) {
-            for (int k=i ; k<*rcount-1 ; k++) {
-                runner[k].L.x = runner[k+1].L.x ;
-                runner[k].L.y = runner[k+1].L.y ;
-            }
-            *rcount -= 1;
-            i--;
-        }
-    }
-    if (*Reachedlight >= RWin) return 1;
-    else if (*rcount == 0 && *Reachedlight<RWin) return 2;
+    if (data->ReachedLamp>=data->RWin) return 1;
+    else if (data->DeadRunners==data->rcount) return 2;
     else return 0;
 }
 //تابع پیدا کردن نزدیک ترین رانر به هانتر
 int ClosestRunner(struct Runner runner[],int rcount,int Hx,int Hy){
     int closest =999;
     int distance;
-    int RNum;
+    int RNum= -1;
     for (int i =0 ; i<rcount ; i++) {
+        if (runner[i].alive==0) continue;
         distance = dist(runner[i].L.x,runner[i].L.y,Hx,Hy);
         if (distance < closest) {
             closest = distance;
@@ -221,10 +218,10 @@ int main () {
      }
     //گرفتن تعداد رانر
      // int Runner[maxx][maxy] ;
-     data.rcount = RHGetter('R',data.x,data.y,0);
+     data.rcount = RHGetter('R',data,0);
     //گرفتن تعداد هانتر
      // int Hunter[maxx][maxy] ;
-   data.hcount = RHGetter('H',data.x,data.y,data.rcount);
+   data.hcount = RHGetter('H',data,data.rcount);
 
     //مشخص کردن خونه های هر کاراکتر در مپ
     int ok = 0;
@@ -237,9 +234,9 @@ int main () {
             int CharactersCount = 0;
             CharactersTries++;
             //پاکسازی ارایه برای مشخص کردن مشخصات کاراکتر ها
-            MapReset(board.map,block,data.x,data.y) ;
-            RHWReset(board.IsHunter,data.x,data.y) ;
-            RHWReset(board.IsRunner,data.x,data.y) ;
+            MapReset(&board,data,block) ;
+            RHWReset(board.IsHunter,data) ;
+            RHWReset(board.IsRunner,data) ;
             //مشخص کردن مشخصات چراغ
             board.light.x = (rand() % data.x);
             board.light.y = (rand() % data.y);
@@ -299,8 +296,8 @@ int main () {
         }
         if (!ok) {
             printf("!EROR!\n(Your Runner and Hunter input values are not optimal for the map dimensions)\nPlease re-enter the values carefully\n");
-            data.rcount = RHGetter('R',data.x,data.y,0);
-            data.hcount = RHGetter('H',data.x,data.y,data.rcount);
+            data.rcount = RHGetter('R',data,0);
+            data.hcount = RHGetter('H',data,data.rcount);
         }
     }
 
@@ -312,8 +309,8 @@ int main () {
          scanf ("%d",&wcount) ;
      }
 
-     RHWReset(board.walls.h,data.x,data.y);
-     RHWReset(board.walls.v,data.x,data.y);
+     RHWReset(board.walls.h,data);
+     RHWReset(board.walls.v,data);
 
      // اجرای رندوم دیوار ها با توابع dfs  و Connected
     int Wallcounter = 0;
@@ -393,19 +390,16 @@ int main () {
     InitWindow(screenW, screenH, "board");
     SetTargetFPS(60);
 
-    int Game = 0;
+    data.game = 0;
     int End = 1;
     data.CurrentRunner = 0;
     data.CurrentHunter = 0;
-    int HunterOnLight[data.hcount];
     for (int i = 0; i < data.hcount; i++) {
-        HunterOnLight[i] = 0;
+        hunter[i].OnLight = 0;
     }
-    int RWin = data.rcount/3;
-    if (data.rcount%3 != 0) {
-        RWin += 1;
-    }
+    data.RWin = (data.rcount+2)/3;
     data.ReachedLamp = 0;
+    data.DeadRunners =0;
     data.turn ='R';
     while (End) {
         if (WindowShouldClose()) {
@@ -415,72 +409,84 @@ int main () {
 
         int RMove = 0 ;
         int NoMovement = 0;
-        if (data.turn == 'R' && !Game) {
-            runnerx = runner[data.CurrentRunner].L.x ;
-            runnery = runner[data.CurrentRunner].L.y ;
-            int newrx = runnerx ;
-            int newry = runnery ;
-            if (IsKeyPressed(KEY_UP))    { newrx--; RMove = 1; }
-            if (IsKeyPressed(KEY_DOWN))  { newrx++; RMove = 1; }
-            if (IsKeyPressed(KEY_LEFT))  { newry--; RMove = 1; }
-            if (IsKeyPressed(KEY_RIGHT)) { newry++; RMove = 1; }
-            if (IsKeyPressed(KEY_SPACE)) {NoMovement = 1; RMove = 1;}
-            if (RMove) {
-                int valid = 1;
-                if(newrx<0||newrx>=data.x||newry<0||newry>=data.y)
-                    valid =0 ;
-                if(valid && !NoMovement){
-                    if(newrx==(runnerx-1) && board.walls.h[runnerx-1][runnery] ) valid=0 ;
-                    if(newrx==(runnerx+1) && board.walls.h[runnerx][runnery]) valid=0 ;
-                    if(newry==(runnery-1) && board.walls.v[runnerx][runnery-1]) valid=0 ;
-                    if(newry==(runnery+1) && board.walls.v[runnerx][runnery]) valid=0 ;
+        if (data.turn == 'R' && !data.game) {
+            while (data.CurrentRunner<data.rcount && runner[data.CurrentRunner].alive==0) {
+                data.CurrentRunner++;
+                if (data.CurrentRunner >= data.rcount) {
+                    data.CurrentRunner = 0;
+                    data.turn='H';
+                    HunterDelay=0.5f;
+                    break;
+                }
+            }
+            if (data.turn == 'R' && runner[data.CurrentRunner].alive==1) {
+                runnerx = runner[data.CurrentRunner].L.x ;
+                runnery = runner[data.CurrentRunner].L.y ;
+                int newrx = runnerx ;
+                int newry = runnery ;
+                if (IsKeyPressed(KEY_UP))    { newrx--; RMove = 1; }
+                if (IsKeyPressed(KEY_DOWN))  { newrx++; RMove = 1; }
+                if (IsKeyPressed(KEY_LEFT))  { newry--; RMove = 1; }
+                if (IsKeyPressed(KEY_RIGHT)) { newry++; RMove = 1; }
+                if (IsKeyPressed(KEY_SPACE)) {NoMovement = 1; RMove = 1;}
+                if (RMove) {
+                    int valid = 1;
+                    if(newrx<0||newrx>=data.x||newry<0||newry>=data.y)
+                        valid =0 ;
+                    if(valid && !NoMovement){
+                        if(newrx==(runnerx-1) && board.walls.h[runnerx-1][runnery] ) valid=0 ;
+                        if(newrx==(runnerx+1) && board.walls.h[runnerx][runnery]) valid=0 ;
+                        if(newry==(runnery-1) && board.walls.v[runnerx][runnery-1]) valid=0 ;
+                        if(newry==(runnery+1) && board.walls.v[runnerx][runnery]) valid=0 ;
 
-                }
-                if (valid && !NoMovement) {
-                    if (board.map[newrx][newry]== Runner_Ch) valid = 0;
-                }
-                if (valid || NoMovement) {
-                    board.map[runnerx][runnery] = block;
-                    board.IsRunner[runnerx][runnery] = 0;
-                    runnerx = newrx;
-                    runnery = newry;
-                    board.map[runnerx][runnery] = Runner_Ch;
-                    board.IsRunner[runnerx][runnery] = 1;
-                    runner[data.CurrentRunner].L.x = runnerx;
-                    runner[data.CurrentRunner].L.y = runnery;
-                    data.CurrentRunner++;
-                    if (data.CurrentRunner==data.rcount) {
-                        data.CurrentRunner = 0;
-                        data.turn='H';
-                        HunterDelay=0.5f;
                     }
-                }
-                else {
-                    ErrorTimer=60 ;
+                    if (valid && !NoMovement) {
+                        if (board.map[newrx][newry]== Runner_Ch) valid = 0;
+                    }
+                    if (valid || NoMovement) {
+                        board.map[runnerx][runnery] = block;
+                        board.IsRunner[runnerx][runnery] = 0;
+                        runnerx = newrx;
+                        runnery = newry;
+                        board.map[runnerx][runnery] = Runner_Ch;
+                        board.IsRunner[runnerx][runnery] = 1;
+                        runner[data.CurrentRunner].L.x = runnerx;
+                        runner[data.CurrentRunner].L.y = runnery;
+                        data.CurrentRunner++;
+                        if (data.CurrentRunner==data.rcount) {
+                            data.CurrentRunner = 0;
+                            data.turn='H';
+                            HunterDelay=0.5f;
+                        }
+                    }
+                    else {
+                        ErrorTimer=60 ;
+                    }
                 }
             }
         }
-            Game = GameState(board.light.x,board.light.y,runner,&data.rcount,hunter,data.hcount,&data.ReachedLamp,board.IsRunner,board.map,RWin);
+            data.game = GameState(&board,&data,runner,hunter);
             if (HunterDelay > 0) {
                 HunterDelay -= GetFrameTime();
             }
 
-            if (data.turn=='H' && !Game && HunterDelay<=0) {
+            if (data.turn=='H' && !data.game && HunterDelay<=0) {
                 hunterx = hunter[data.CurrentHunter].L.x;
                 huntery = hunter[data.CurrentHunter].L.y;
                 int newhx = hunterx ;
                 int newhy = huntery ;
                 int Rnum = ClosestRunner(runner,data.rcount,hunterx,huntery);
-                if (runner[Rnum].L.y>huntery && !(board.walls.v[hunterx][huntery]) && huntery+1<data.y && board.map[newhx][newhy+1]!=Hunter_Ch) {newhy++;}
+                if (Rnum==-1){newhx = hunterx; newhy = huntery;}
+                else if (runner[Rnum].L.y>huntery && !(board.walls.v[hunterx][huntery]) && huntery+1<data.y && board.map[newhx][newhy+1]!=Hunter_Ch) {newhy++;}
                 else if (runner[Rnum].L.y<huntery && !(board.walls.v[hunterx][huntery-1]) && huntery-1>=0 && board.map[newhx][newhy-1]!=Hunter_Ch) {newhy--;}
                 else if (runner[Rnum].L.x>hunterx && !(board.walls.h[hunterx][huntery]) && hunterx+1<data.x && board.map[newhx+1][newhy]!=Hunter_Ch) {newhx++;}
                 else if (runner[Rnum].L.x<hunterx && !(board.walls.h[hunterx-1][huntery]) && hunterx-1>=0 && board.map[newhx-1][newhy]!=Hunter_Ch) {newhx--;}
-                if (HunterOnLight[data.CurrentHunter]) {
+                if (hunter[data.CurrentHunter].OnLight) {
                     board.map[hunterx][huntery] = light;
-                    HunterOnLight[data.CurrentHunter] = 0;
+                    hunter[data.CurrentHunter].OnLight = 0;
                 }
                 else board.map[hunterx][huntery] = block;
-                if (board.map[newhx][newhy]==light){HunterOnLight[data.CurrentHunter] = 1;}
+                if (board.map[newhx][newhy]==light){hunter[data.CurrentHunter].OnLight = 1;}
                 board.IsHunter[hunterx][huntery]=0;
                 hunterx = newhx;
                 huntery = newhy;
@@ -494,7 +500,7 @@ int main () {
                     data.turn='R';
                 }
             }
-            Game = GameState(board.light.x,board.light.y,runner,&data.rcount,hunter,data.hcount,&data.ReachedLamp,board.IsRunner,board.map,RWin);
+            data.game = GameState(&board,&data,runner,hunter);
         BeginDrawing();
         ClearBackground(WHITE);
 
@@ -503,9 +509,9 @@ int main () {
             for (int j = 0; j < data.y; j++) {
                 Color bg = WHITE;
                 char ch = board.map[i][j];
-                if (ch == Runner_Ch || ch == Hunter_Ch || ch == light) {
-                    bg = WHITE;
-                }
+                // if (ch == Runner_Ch || ch == Hunter_Ch || ch == light) {
+                //     bg = WHITE;
+                // }
                 DrawRectangle(j*CELL, i*CELL, CELL, CELL, bg);
             }
         }
@@ -547,20 +553,20 @@ int main () {
             DrawText("INVALID MOVE!", 10, 10, 20, RED);
             ErrorTimer--;
         }
-        if (Game && EndTimer==0) {
+        if (data.game && EndTimer==0) {
             EndTimer=180;
         }
-        if (Game) {
+        if (data.game) {
             ClearBackground(WHITE);
             DrawRectangle(0, 0, CELL*data.y, CELL*data.x, WHITE);
-            if (Game == 1) {
+            if (data.game == 1) {
                 DrawText("YOU WIN",
                          screenW/2 - MeasureText("YOU WIN", 40)/2,
                          screenH/2 - 20,
                          40,
                          GREEN);
             }
-            else if (Game == 2) {
+            else if (data.game == 2) {
                 DrawText("YOU LOSE",
                          screenW/2 - MeasureText("YOU LOSE", 40)/2,
                          screenH/2 - 20,
