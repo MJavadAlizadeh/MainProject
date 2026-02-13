@@ -32,17 +32,13 @@ struct Wall {
     int h[maxx][maxy];
     int v[maxx][maxy];
 };
-struct TempWall {
-    int h[maxx][maxy];
-    int v[maxx][maxy];
-};
 struct Board {
     char map[maxx][maxy];
     struct locate light;
     int IsRunner[maxx][maxy];
     int IsHunter[maxx][maxy];
     struct Wall walls;
-    struct TempWall tempWalls;
+    struct Wall tempWalls;
 };
 struct Data {
     int x,y;
@@ -56,6 +52,13 @@ struct Data {
     int RWin;
     char turn;
     int game;
+};
+struct MoveWall {
+    int TempWallLife;
+    int Active;
+    int selx,sely;
+    int Orientation;
+    int WallValid;
 };
 
 //تابع DFS
@@ -197,6 +200,19 @@ int ClosestRunner(struct Runner runner[],int rcount,int Hx,int Hy){
     }
     return RNum;
 }
+int TempWallValid(struct Data data,struct Board board,struct MoveWall MWall) {
+    int valid =1;
+    if (MWall.Orientation == 1) {
+        if (MWall.sely>=data.y-1)valid=0;
+        else if (board.walls.v[MWall.selx][MWall.sely] || board.tempWalls.v[MWall.selx][MWall.sely])valid=0;
+    }
+    else if (MWall.Orientation == 0) {
+        if (MWall.selx>=data.x-1)valid=0;
+        else if (board.walls.h[MWall.selx][MWall.sely] || board.tempWalls.h[MWall.selx][MWall.sely])valid=0;
+    }
+    else valid=0;
+    return valid;
+}
 
 int main () {
     srand(time(NULL));
@@ -308,10 +324,10 @@ int main () {
          printf("!ERROR!\n(Invalid number of walls)\nPlease enter again:\n");
          scanf ("%d",&wcount) ;
      }
-
-     RHWReset(board.walls.h,data);
-     RHWReset(board.walls.v,data);
-
+    RHWReset(board.walls.h,data);
+    RHWReset(board.walls.v,data);
+    RHWReset(board.tempWalls.h,data);
+    RHWReset(board.tempWalls.v,data);
      // اجرای رندوم دیوار ها با توابع dfs  و Connected
     int Wallcounter = 0;
     int WallTries = 0;
@@ -380,9 +396,11 @@ int main () {
                 num++;
             }
      //چاپ نقشه با ریلیب
+    struct MoveWall MWall;
     const int CELL = 50;
     const int WALL_THICK = 4;
-    int ErrorTimer = 0 ;
+    int MoveErrorTimer = 0 ;
+    int TempWallErrorTimer = 0;
     int EndTimer = 0;
     float HunterDelay=0.0f;
     int screenW = data.y * CELL;
@@ -400,6 +418,22 @@ int main () {
     data.RWin = (data.rcount+2)/3;
     data.ReachedLamp = 0;
     data.DeadRunners =0;
+    MWall.TempWallLife=2;
+    MWall.Active=0;
+    MWall.WallValid=0;
+    MWall.Orientation=0;
+    data.MaxTempWall =1;
+    data.UsedTempWall=0;
+    if (data.x<data.y) {
+        if (data.x/3 > data.MaxTempWall) {
+            data.MaxTempWall = data.x/3;
+        }
+    }
+    else {
+        if (data.y/3 > data.MaxTempWall) {
+            data.MaxTempWall = data.y/3;
+        }
+    }
     data.turn ='R';
     while (End) {
         if (WindowShouldClose()) {
@@ -424,20 +458,56 @@ int main () {
                 runnery = runner[data.CurrentRunner].L.y ;
                 int newrx = runnerx ;
                 int newry = runnery ;
+                if (IsKeyPressed(KEY_T) && !MWall.Active) {
+                    if (data.UsedTempWall < data.MaxTempWall) {
+                        MWall.Active = 1;
+                        MWall.selx = runnerx;
+                        MWall.sely = runnery;
+                    }
+                    else {
+                        TempWallErrorTimer=60;
+                    }
+                }
                 if (IsKeyPressed(KEY_UP))    { newrx--; RMove = 1; }
                 if (IsKeyPressed(KEY_DOWN))  { newrx++; RMove = 1; }
                 if (IsKeyPressed(KEY_LEFT))  { newry--; RMove = 1; }
                 if (IsKeyPressed(KEY_RIGHT)) { newry++; RMove = 1; }
                 if (IsKeyPressed(KEY_SPACE)) {NoMovement = 1; RMove = 1;}
+                if (MWall.Active) {
+                    if (IsKeyPressed(KEY_W) && MWall.selx > 0) MWall.selx--;
+                    if (IsKeyPressed(KEY_S) && MWall.selx < data.x - 1) MWall.selx++;
+                    if (IsKeyPressed(KEY_A) && MWall.sely > 0) MWall.sely--;
+                    if (IsKeyPressed(KEY_D) && MWall.sely < data.y - 1) MWall.sely++;
+                    if (IsKeyPressed(KEY_H))MWall.Orientation=0;
+                    if (IsKeyPressed(KEY_V))MWall.Orientation=1;
+                    MWall.WallValid=TempWallValid(data,board,MWall);
+                    if (IsKeyPressed(KEY_ENTER)) {
+                        if (MWall.WallValid) {
+                            if (MWall.Orientation==0)
+                                board.tempWalls.h[MWall.selx][MWall.sely] = MWall.TempWallLife;
+                            else
+                                board.tempWalls.v[MWall.selx][MWall.sely] = MWall.TempWallLife;
+                            data.UsedTempWall++;
+                            MWall.Active=0;
+                            data.CurrentRunner++;
+                            if (data.CurrentRunner==data.rcount) {
+                                data.CurrentRunner = 0;
+                                data.turn='H';
+                                HunterDelay=0.5f;
+                            }
+                        }
+                        else TempWallErrorTimer = 60;
+                    }
+                }
                 if (RMove) {
                     int valid = 1;
                     if(newrx<0||newrx>=data.x||newry<0||newry>=data.y)
                         valid =0 ;
                     if(valid && !NoMovement){
-                        if(newrx==(runnerx-1) && board.walls.h[runnerx-1][runnery] ) valid=0 ;
-                        if(newrx==(runnerx+1) && board.walls.h[runnerx][runnery]) valid=0 ;
-                        if(newry==(runnery-1) && board.walls.v[runnerx][runnery-1]) valid=0 ;
-                        if(newry==(runnery+1) && board.walls.v[runnerx][runnery]) valid=0 ;
+                        if(newrx==(runnerx-1) && (board.walls.h[runnerx-1][runnery] || board.tempWalls.h[runnerx-1][runnery]) ) valid=0 ;
+                        if(newrx==(runnerx+1) && (board.walls.h[runnerx][runnery] || board.tempWalls.h[runnerx][runnery])) valid=0 ;
+                        if(newry==(runnery-1) && (board.walls.v[runnerx][runnery-1] || board.tempWalls.v[runnerx][runnery-1])) valid=0 ;
+                        if(newry==(runnery+1) && (board.walls.v[runnerx][runnery] || board.tempWalls.v[runnerx][runnery])) valid=0 ;
 
                     }
                     if (valid && !NoMovement) {
@@ -460,7 +530,7 @@ int main () {
                         }
                     }
                     else {
-                        ErrorTimer=60 ;
+                        MoveErrorTimer=60 ;
                     }
                 }
             }
@@ -477,10 +547,10 @@ int main () {
                 int newhy = huntery ;
                 int Rnum = ClosestRunner(runner,data.rcount,hunterx,huntery);
                 if (Rnum==-1){newhx = hunterx; newhy = huntery;}
-                else if (runner[Rnum].L.y>huntery && !(board.walls.v[hunterx][huntery]) && huntery+1<data.y && board.map[newhx][newhy+1]!=Hunter_Ch) {newhy++;}
-                else if (runner[Rnum].L.y<huntery && !(board.walls.v[hunterx][huntery-1]) && huntery-1>=0 && board.map[newhx][newhy-1]!=Hunter_Ch) {newhy--;}
-                else if (runner[Rnum].L.x>hunterx && !(board.walls.h[hunterx][huntery]) && hunterx+1<data.x && board.map[newhx+1][newhy]!=Hunter_Ch) {newhx++;}
-                else if (runner[Rnum].L.x<hunterx && !(board.walls.h[hunterx-1][huntery]) && hunterx-1>=0 && board.map[newhx-1][newhy]!=Hunter_Ch) {newhx--;}
+                else if (runner[Rnum].L.y>huntery && huntery+1<data.y && !(board.walls.v[hunterx][huntery]) && !(board.tempWalls.v[hunterx][huntery]) && board.map[newhx][newhy+1]!=Hunter_Ch) {newhy++;}
+                else if (runner[Rnum].L.y<huntery && huntery-1>=0 && !(board.walls.v[hunterx][huntery-1]) && !(board.tempWalls.v[hunterx][huntery-1]) && board.map[newhx][newhy-1]!=Hunter_Ch) {newhy--;}
+                else if (runner[Rnum].L.x>hunterx && hunterx+1<data.x && !(board.walls.h[hunterx][huntery]) && !(board.tempWalls.h[hunterx][huntery]) && board.map[newhx+1][newhy]!=Hunter_Ch) {newhx++;}
+                else if (runner[Rnum].L.x<hunterx && hunterx-1>=0 && !(board.walls.h[hunterx-1][huntery]) && !(board.tempWalls.h[hunterx-1][huntery]) && board.map[newhx-1][newhy]!=Hunter_Ch) {newhx--;}
                 if (hunter[data.CurrentHunter].OnLight) {
                     board.map[hunterx][huntery] = light;
                     hunter[data.CurrentHunter].OnLight = 0;
@@ -498,6 +568,15 @@ int main () {
                 if (data.CurrentHunter==data.hcount) {
                     data.CurrentHunter = 0;
                     data.turn='R';
+                    //کم کردن یک دور از عمر دیوار موقت
+                    for (int i = 0; i < data.x; i++) {
+                        for (int j = 0; j < data.y; j++) {
+                            if (board.tempWalls.h[i][j]>0)
+                                board.tempWalls.h[i][j]--;
+                            if (board.tempWalls.v[i][j]>0)
+                                board.tempWalls.v[i][j]--;
+                        }
+                    }
                 }
             }
             data.game = GameState(&board,&data,runner,hunter);
@@ -533,25 +612,73 @@ int main () {
                               WALL_THICK, CELL, lineColor);
             }
         }
+        //az in
+        for (int i = 0; i < data.x - 1; i++) {
+            for (int j = 0; j < data.y; j++) {
+                if (board.tempWalls.h[i][j] > 0) {
+                    DrawRectangle(j*CELL, i*CELL + CELL - WALL_THICK/2,
+                                  CELL, WALL_THICK, SKYBLUE);
+                }
+            }
+        }
+        for (int i = 0; i < data.x; i++) {
+            for (int j = 0; j < data.y - 1; j++) {
+                if (board.tempWalls.v[i][j] > 0) {
+                    DrawRectangle(j*CELL + CELL - WALL_THICK/2, i*CELL,
+                                  WALL_THICK, CELL, SKYBLUE);
+                }
+            }
+        }
+
+        if (MWall.Active) {
+            DrawRectangleLines(MWall.sely*CELL, MWall.selx*CELL, CELL, CELL, GREEN);
+            if (!MWall.WallValid) {
+                // جابجایی دیوار موقت
+                if (MWall.Orientation == 1 && MWall.sely < data.y - 1) {
+                    DrawRectangle(MWall.sely*CELL + CELL - WALL_THICK/2, MWall.selx*CELL,
+                                  WALL_THICK, CELL, RED);
+                } else if (MWall.Orientation == 0 && MWall.selx < data.x - 1) {
+                    DrawRectangle(MWall.sely*CELL, MWall.selx*CELL + CELL - WALL_THICK/2,
+                                  CELL, WALL_THICK, RED);
+                }
+            } else {
+                if (MWall.Orientation == 1) {
+                    DrawRectangle(MWall.sely*CELL + CELL - WALL_THICK/2, MWall.selx*CELL,
+                                  WALL_THICK, CELL, SKYBLUE);
+                } else {
+                    DrawRectangle(MWall.sely*CELL, MWall.selx*CELL + CELL - WALL_THICK/2,
+                                  CELL, WALL_THICK, SKYBLUE);
+                }
+            }
+        }
+
 
 
         for (int i = 0; i < data.x; i++) {
             for (int j = 0; j < data.y; j++) {
-                char ch = board.map[i][j];
-                if (ch == Runner_Ch) {
+                // char ch = board.map[i][j];
+                if (board.map[i][j] == Runner_Ch) {
+                    if (runner[data.CurrentRunner].L.x == i && runner[data.CurrentRunner].L.y == j) {
+                        DrawCircle(j*CELL + CELL/2, i*CELL + CELL/2, CELL/3, GREEN);
+                    }
+                    else
                     DrawCircle(j*CELL + CELL/2, i*CELL + CELL/2, CELL/3, BLUE);
-                } else if (ch == Hunter_Ch) {
+                } else if (board.map[i][j] == Hunter_Ch) {
                     DrawCircle(j*CELL + CELL/2, i*CELL + CELL/2, CELL/3, RED);
-                } else if (ch == light) {
+                } else if (board.map[i][j] == light) {
                     int pad = WALL_THICK / 2;
                     DrawRectangle(j*CELL + pad , i*CELL + pad , CELL - WALL_THICK , CELL - WALL_THICK, YELLOW);
                 }
             }
         }
 
-        if (ErrorTimer > 0) {
+        if (MoveErrorTimer > 0) {
             DrawText("INVALID MOVE!", 10, 10, 20, RED);
-            ErrorTimer--;
+            MoveErrorTimer--;
+        }
+        if (TempWallErrorTimer > 0) {
+            DrawText("You can't put a wall here!", 10, 10, 20, RED);
+            TempWallErrorTimer--;
         }
         if (data.game && EndTimer==0) {
             EndTimer=180;
