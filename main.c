@@ -14,6 +14,7 @@ char light = 'L' ;
 char block = '.' ;
 // char V = '|' ;
 // char H = '_' ;
+char box_char = '?';
 
 //استراکت ها
 struct locate {
@@ -39,6 +40,7 @@ struct Board {
     int IsHunter[maxx][maxy];
     struct Wall walls;
     struct Wall tempWalls;
+    int LuckyBoxes[maxx][maxy];
 };
 struct Data {
     int x,y;
@@ -52,6 +54,7 @@ struct Data {
     int RWin;
     char turn;
     int game;
+    int boxcount ;
 };
 struct MoveWall {
     int TempWallLife;
@@ -214,6 +217,464 @@ int TempWallValid(struct Data data,struct Board board,struct MoveWall MWall) {
     return valid;
 }
 
+void DecreaseTempWalls(struct Board *board, struct Data data) {
+    for (int i = 0; i < data.x; i++) {
+        for (int j = 0; j < data.y; j++) {
+            if (board->tempWalls.h[i][j] > 0)
+                board->tempWalls.h[i][j]--;
+            if (board->tempWalls.v[i][j] > 0)
+                board->tempWalls.v[i][j]--;
+        }
+    }
+}
+
+int AddRandomWall(struct Board *board, struct Data data, int visited[][maxy]) {
+    int added = 0;
+    int tries = 0;
+
+    while (!added && tries < 50) {
+        tries++;
+        int choice = rand() % 2;
+
+        if (choice) {
+            int i = rand() % (data.x - 1);
+            int j = rand() % data.y;
+
+            if (board->walls.h[i][j] == 0 && board->tempWalls.h[i][j] == 0) {
+                board->walls.h[i][j] = 1;
+                if (Connected(board->walls.h, board->walls.v, visited, data.x, data.y)) {
+                    added = 1;
+                } else {
+                    board->walls.h[i][j] = 0;
+                }
+            }
+        } else {
+            int i = rand() % data.x;
+            int j = rand() % (data.y - 1);
+
+            if (board->walls.v[i][j] == 0 && board->tempWalls.v[i][j] == 0) {
+                board->walls.v[i][j] = 1;
+                if (Connected(board->walls.h, board->walls.v, visited, data.x, data.y)) {
+                    added = 1;
+                } else {
+                    board->walls.v[i][j] = 0;
+                }
+            }
+        }
+    }
+    return added;
+}
+
+
+void MoveRunnerRandom(struct Runner runner[], int runner_index,
+                      struct Board *board, struct Data data) {
+    if (runner_index < 0 || runner_index >= data.rcount) return;
+    if (runner[runner_index].alive == 0) return;
+
+    int old_x = runner[runner_index].L.x;
+    int old_y = runner[runner_index].L.y;
+
+    for (int attempt = 0; attempt < 50; attempt++) {
+        int new_x = old_x + (rand() % 3) - 1;
+        int new_y = old_y + (rand() % 3) - 1;
+
+        if (new_x >= 0 && new_x < data.x && new_y >= 0 && new_y < data.y &&
+            board->map[new_x][new_y] == block) {
+
+            board->map[old_x][old_y] = block;
+            board->IsRunner[old_x][old_y] = 0;
+
+            runner[runner_index].L.x = new_x;
+            runner[runner_index].L.y = new_y;
+
+            board->map[new_x][new_y] = Runner_Ch;
+            board->IsRunner[new_x][new_y] = 1;
+
+            printf("   Runner %d moved to (%d,%d)\n", runner_index, new_x, new_y);
+            break;
+        }
+    }
+}
+
+void MoveHunterRandom(struct Hunter hunter[], int hunter_index,
+                      struct Board *board, struct Data data) {
+    if (hunter_index < 0 || hunter_index >= data.hcount) return;
+
+    int old_x = hunter[hunter_index].L.x;
+    int old_y = hunter[hunter_index].L.y;
+
+    for (int attempt = 0; attempt < 50; attempt++) {
+        int new_x = old_x + (rand() % 3) - 1;
+        int new_y = old_y + (rand() % 3) - 1;
+
+        if (new_x >= 0 && new_x < data.x && new_y >= 0 && new_y < data.y &&
+            board->map[new_x][new_y] == block) {
+
+            if (hunter[hunter_index].OnLight) {
+                board->map[old_x][old_y] = light;
+            } else {
+                board->map[old_x][old_y] = block;
+            }
+            board->IsHunter[old_x][old_y] = 0;
+
+            hunter[hunter_index].L.x = new_x;
+            hunter[hunter_index].L.y = new_y;
+
+            board->map[new_x][new_y] = Hunter_Ch;
+            board->IsHunter[new_x][new_y] = 1;
+
+            if (board->map[new_x][new_y] == light) {
+                hunter[hunter_index].OnLight = 1;
+            }
+
+            printf("   Hunter %d moved to (%d,%d)\n", hunter_index, new_x, new_y);
+            break;
+        }
+    }
+}
+
+int MoveHunterManually(struct Hunter hunter[], int hunter_index,
+                       struct Board *board, struct Data data,
+                       int screenW, int screenH, int CELL, int WALL_THICK) {
+
+    if (hunter_index < 0 || hunter_index >= data.hcount) return 0;
+
+    int old_x = hunter[hunter_index].L.x;
+    int old_y = hunter[hunter_index].L.y;
+    int moved = 0;
+    int timer = 300; // 5 ثانیه فرصت
+
+    printf("\n🎯 MOVE HUNTER %d!\n", hunter_index);
+    printf("Use arrow keys to move hunter to an adjacent empty cell\n");
+    printf("NO WALL between cells!\n");
+    printf("Press SPACE to skip\n");
+
+    while (timer > 0 && !moved) {
+        if (IsKeyPressed(KEY_UP)) {
+            if (old_x > 0 && !board->walls.h[old_x - 1][old_y] &&
+                !board->tempWalls.h[old_x - 1][old_y] &&
+                board->map[old_x - 1][old_y] == block) {
+
+                if (hunter[hunter_index].OnLight) {
+                    board->map[old_x][old_y] = light;
+                } else {
+                    board->map[old_x][old_y] = block;
+                }
+                board->IsHunter[old_x][old_y] = 0;
+
+                hunter[hunter_index].L.x = old_x - 1;
+                hunter[hunter_index].L.y = old_y;
+                board->map[old_x - 1][old_y] = Hunter_Ch;
+                board->IsHunter[old_x - 1][old_y] = 1;
+
+                if (board->map[old_x - 1][old_y] == light) {
+                    hunter[hunter_index].OnLight = 1;
+                }
+
+                moved = 1;
+                printf("   Hunter %d moved UP to (%d,%d)\n",
+                       hunter_index, old_x - 1, old_y);
+            }
+        } else if (IsKeyPressed(KEY_DOWN)) {
+            if (old_x < data.x - 1 && !board->walls.h[old_x][old_y] &&
+                !board->tempWalls.h[old_x][old_y] &&
+                board->map[old_x + 1][old_y] == block) {
+
+                if (hunter[hunter_index].OnLight) {
+                    board->map[old_x][old_y] = light;
+                } else {
+                    board->map[old_x][old_y] = block;
+                }
+                board->IsHunter[old_x][old_y] = 0;
+
+                hunter[hunter_index].L.x = old_x + 1;
+                hunter[hunter_index].L.y = old_y;
+                board->map[old_x + 1][old_y] = Hunter_Ch;
+                board->IsHunter[old_x + 1][old_y] = 1;
+
+                if (board->map[old_x + 1][old_y] == light) {
+                    hunter[hunter_index].OnLight = 1;
+                }
+
+                moved = 1;
+                printf("   Hunter %d moved DOWN to (%d,%d)\n",
+                       hunter_index, old_x + 1, old_y);
+            }
+        } else if (IsKeyPressed(KEY_LEFT)) {
+            if (old_y > 0 && !board->walls.v[old_x][old_y - 1] &&
+                !board->tempWalls.v[old_x][old_y - 1] &&
+                board->map[old_x][old_y - 1] == block) {
+
+                if (hunter[hunter_index].OnLight) {
+                    board->map[old_x][old_y] = light;
+                } else {
+                    board->map[old_x][old_y] = block;
+                }
+                board->IsHunter[old_x][old_y] = 0;
+
+                hunter[hunter_index].L.x = old_x;
+                hunter[hunter_index].L.y = old_y - 1;
+                board->map[old_x][old_y - 1] = Hunter_Ch;
+                board->IsHunter[old_x][old_y - 1] = 1;
+
+                if (board->map[old_x][old_y - 1] == light) {
+                    hunter[hunter_index].OnLight = 1;
+                }
+
+                moved = 1;
+                printf("   Hunter %d moved LEFT to (%d,%d)\n",
+                       hunter_index, old_x, old_y - 1);
+            }
+        } else if (IsKeyPressed(KEY_RIGHT)) {
+            if (old_y < data.y - 1 && !board->walls.v[old_x][old_y] &&
+                !board->tempWalls.v[old_x][old_y] &&
+                board->map[old_x][old_y + 1] == block) {
+
+                if (hunter[hunter_index].OnLight) {
+                    board->map[old_x][old_y] = light;
+                } else {
+                    board->map[old_x][old_y] = block;
+                }
+                board->IsHunter[old_x][old_y] = 0;
+
+                hunter[hunter_index].L.x = old_x;
+                hunter[hunter_index].L.y = old_y + 1;
+                board->map[old_x][old_y + 1] = Hunter_Ch;
+                board->IsHunter[old_x][old_y + 1] = 1;
+
+                if (board->map[old_x][old_y + 1] == light) {
+                    hunter[hunter_index].OnLight = 1;
+                }
+
+                moved = 1;
+                printf("   Hunter %d moved RIGHT to (%d,%d)\n",
+                       hunter_index, old_x, old_y + 1);
+            }
+        } else if (IsKeyPressed(KEY_SPACE)) {
+            printf("   Move skipped!\n");
+            moved = 1;
+        }
+
+        timer--;
+
+        BeginDrawing();
+        ClearBackground(WHITE);
+
+        DrawText("MOVE HUNTER!",
+                 screenW / 2 - MeasureText("MOVE HUNTER!", 40) / 2,
+                 screenH / 2 - 80, 40, PURPLE);
+
+        char msg[100];
+        sprintf(msg, "Hunter %d - Use arrow keys to move", hunter_index);
+        DrawText(msg,
+                 screenW / 2 - MeasureText(msg, 20) / 2,
+                 screenH / 2 - 20, 20, DARKGRAY);
+
+        DrawText("Cell must be EMPTY and NO WALL between",
+                 screenW / 2 - MeasureText("Cell must be EMPTY and NO WALL between", 20) / 2,
+                 screenH / 2 + 10, 20, DARKGRAY);
+
+        DrawText("Valid moves:",
+                 screenW / 2 - MeasureText("Valid moves:", 20) / 2,
+                 screenH / 2 + 50, 20, GREEN);
+
+        int y_offset = 80;
+        if (old_x > 0 && !board->walls.h[old_x - 1][old_y] &&
+            !board->tempWalls.h[old_x - 1][old_y] &&
+            board->map[old_x - 1][old_y] == block) {
+            DrawText("↑ UP", screenW / 2 - 30, screenH / 2 + y_offset, 20, GREEN);
+            y_offset += 25;
+        }
+        if (old_x < data.x - 1 && !board->walls.h[old_x][old_y] &&
+            !board->tempWalls.h[old_x][old_y] &&
+            board->map[old_x + 1][old_y] == block) {
+            DrawText("↓ DOWN", screenW / 2 - 40, screenH / 2 + y_offset, 20, GREEN);
+            y_offset += 25;
+        }
+        if (old_y > 0 && !board->walls.v[old_x][old_y - 1] &&
+            !board->tempWalls.v[old_x][old_y - 1] &&
+            board->map[old_x][old_y - 1] == block) {
+            DrawText("← LEFT", screenW / 2 - 40, screenH / 2 + y_offset, 20, GREEN);
+            y_offset += 25;
+        }
+        if (old_y < data.y - 1 && !board->walls.v[old_x][old_y] &&
+            !board->tempWalls.v[old_x][old_y] &&
+            board->map[old_x][old_y + 1] == block) {
+            DrawText("→ RIGHT", screenW / 2 - 40, screenH / 2 + y_offset, 20, GREEN);
+        }
+
+        DrawText("Press SPACE to skip",
+                 screenW / 2 - MeasureText("Press SPACE to skip", 20) / 2,
+                 screenH / 2 + 180, 20, RED);
+
+        EndDrawing();
+    }
+
+    return moved;
+}
+
+int SelectHunterManually(struct Hunter hunter[], struct Data data,
+                         struct Board *board, int screenW, int screenH,
+                         int CELL, int WALL_THICK) {
+
+    int selected = -1;
+    int timer = 300;
+    int selector_x = 0, selector_y = 0;
+
+
+    for (int i = 0; i < data.x; i++) {
+        for (int j = 0; j < data.y; j++) {
+            if (board->IsHunter[i][j]) {
+                selector_x = i;
+                selector_y = j;
+                break;
+            }
+        }
+    }
+
+    printf("\n🎯 SELECT HUNTER TO MOVE!\n");
+    printf("Use arrow keys to move cursor\n");
+    printf("Press ENTER to select hunter under cursor\n");
+    printf("Press SPACE to cancel\n");
+
+    while (timer > 0 && selected == -1) {
+        if (IsKeyPressed(KEY_UP) && selector_x > 0) selector_x--;
+        if (IsKeyPressed(KEY_DOWN) && selector_x < data.x - 1) selector_x++;
+        if (IsKeyPressed(KEY_LEFT) && selector_y > 0) selector_y--;
+        if (IsKeyPressed(KEY_RIGHT) && selector_y < data.y - 1) selector_y++;
+
+        if (IsKeyPressed(KEY_ENTER)) {
+            if (board->IsHunter[selector_x][selector_y]) {
+                for (int i = 0; i < data.hcount; i++) {
+                    if (hunter[i].L.x == selector_x && hunter[i].L.y == selector_y) {
+                        selected = i;
+                        printf("   ✅ Hunter %d selected at (%d,%d)\n", i, selector_x, selector_y);
+                        break;
+                    }
+                }
+                if (selected == -1) {
+                    printf("   ⚠️ No hunter at this position!\n");
+                }
+            } else {
+                printf("   ⚠️ No hunter at this position!\n");
+            }
+        }
+
+        if (IsKeyPressed(KEY_SPACE)) {
+            printf("   ❌ Selection cancelled!\n");
+            return -1;
+        }
+
+        timer--;
+
+        BeginDrawing();
+        ClearBackground(WHITE);
+
+        for (int i = 0; i < data.x; i++) {
+            for (int j = 0; j < data.y; j++) {
+                DrawRectangle(j * CELL, i * CELL, CELL, CELL, WHITE);
+                DrawRectangleLines(j * CELL, i * CELL, CELL, CELL, LIGHTGRAY);
+
+                if (board->IsHunter[i][j]) {
+                    DrawCircle(j * CELL + CELL / 2, i * CELL + CELL / 2, CELL / 3, RED);
+                }
+            }
+        }
+
+        DrawRectangleLines(selector_y * CELL, selector_x * CELL, CELL, CELL, GREEN);
+
+        DrawText("SELECT HUNTER - Use arrows to move, ENTER to select, SPACE to cancel",
+                 10, screenH - 30, 20, DARKGRAY);
+
+        EndDrawing();
+    }
+
+    return selected;
+}
+
+int ActivateLuckyBox(struct Runner runner[], struct Hunter hunter[],
+                     struct Board *board, struct Data *data,
+                     int visited[][maxy], int *extra_turn,
+                     int runner_index, int screenW, int screenH,
+                     int CELL, int WALL_THICK, char *boxMessage, int *boxMessageTimer) {
+
+    int chance = rand() % 4;
+
+    switch (chance) {
+        case 0: // نوبت مجدد
+            printf("\n🎁 LUCKY BOX: EXTRA TURN!\n");
+            printf("   Runner %d can move again!\n", runner_index);
+            *extra_turn = 1;
+            sprintf(boxMessage, "EXTRA TURN!");
+            *boxMessageTimer = 120;
+            return 1;
+
+        case 1: // +۲ دیوار
+            printf("\n🎁 LUCKY BOX: +2 WALLS ADDED!\n");
+            int added = 0;
+            for (int w = 0; w < 2; w++) {
+                if (AddRandomWall(board, *data, visited)) {
+                    added++;
+                    printf("   Wall %d added!\n", w + 1);
+                }
+            }
+            printf("   %d walls placed successfully!\n", added);
+            *extra_turn = 0;
+            sprintf(boxMessage, "+2 WALLS ADDED!");
+            *boxMessageTimer = 120;
+            return 2;
+
+        case 2: // زلزله
+            printf("\n🎁 LUCKY BOX: EARTHQUAKE!\n");
+            printf("   Everyone moves randomly!\n");
+
+            for (int i = 0; i < data->rcount; i++) {
+                if (runner[i].alive) {
+                    MoveRunnerRandom(runner, i, board, *data);
+                }
+            }
+
+            for (int i = 0; i < data->hcount; i++) {
+                MoveHunterRandom(hunter, i, board, *data);
+            }
+
+            *extra_turn = 0;
+            sprintf(boxMessage, "EARTHQUAKE!");
+            *boxMessageTimer = 120;
+            return 3;
+
+        case 3: // جابجایی هانتر
+            printf("\n🎁 LUCKY BOX: MOVE HUNTER!\n");
+            printf("   Select a hunter to move!\n");
+
+            int hunter_index = SelectHunterManually(hunter, *data, board,
+                                                    screenW, screenH, CELL, WALL_THICK);
+
+            if (hunter_index >= 0) {
+                int moved = MoveHunterManually(hunter, hunter_index, board, *data,
+                                               screenW, screenH, CELL, WALL_THICK);
+
+                if (moved) {
+                    printf("   ✅ Hunter %d moved successfully!\n", hunter_index);
+                    sprintf(boxMessage, "HUNTER MOVED!");
+                } else {
+                    printf("   ⚠️ Hunter %d stayed in place.\n", hunter_index);
+                    sprintf(boxMessage, "HUNTER SKIPPED");
+                }
+            } else {
+                printf("   ❌ No hunter selected!\n");
+                sprintf(boxMessage, "NO HUNTER SELECTED");
+            }
+
+            *boxMessageTimer = 120;
+            *extra_turn = 0;
+            return 4;
+
+        default:
+            *extra_turn = 0;
+            return 0;
+    }
+}
 int main () {
     srand(time(NULL));
     struct Board board;
@@ -239,6 +700,20 @@ int main () {
      // int Hunter[maxx][maxy] ;
    data.hcount = RHGetter('H',data,data.rcount);
 
+
+    printf("\n=== LUCKY BOXES ===\n");
+    printf("Please enter the number of lucky boxes:\n");
+    scanf("%d", &data.boxcount);
+    int maxBoxes = data.x * data.y - data.rcount - data.hcount - 1;
+    while (data.boxcount < 0 || data.boxcount > maxBoxes) {
+        if (data.boxcount < 0)
+            printf("!ERROR!\n(Invalid number of lucky boxes)\nPlease enter again:\n");
+        else
+            printf("!ERROR!\n(Too many lucky boxes! Max %d)\nPlease enter again:\n", maxBoxes);
+        scanf("%d", &data.boxcount);
+    }
+
+
     //مشخص کردن خونه های هر کاراکتر در مپ
     int ok = 0;
     int TryLimit = 500;
@@ -253,6 +728,9 @@ int main () {
             MapReset(&board,data,block) ;
             RHWReset(board.IsHunter,data) ;
             RHWReset(board.IsRunner,data) ;
+
+            RHWReset(board.LuckyBoxes,data) ;
+
             //مشخص کردن مشخصات چراغ
             board.light.x = (rand() % data.x);
             board.light.y = (rand() % data.y);
@@ -305,7 +783,7 @@ int main () {
                     CharactersCount++;
                 }
             }
-            if (CharactersCount == CharactersSum) {
+            /*if (CharactersCount == CharactersSum) {
                 ok = 1;
                 break;
             }
@@ -314,6 +792,37 @@ int main () {
             printf("!EROR!\n(Your Runner and Hunter input values are not optimal for the map dimensions)\nPlease re-enter the values carefully\n");
             data.rcount = RHGetter('R',data,0);
             data.hcount = RHGetter('H',data,data.rcount);
+        }
+    }*/
+
+    int boxPlaced = 0;
+    int boxTries = 0;
+    while (boxPlaced < data.boxcount && boxTries < TryLimit * 2) {
+        boxTries++;
+        int bx = rand() % data.x;
+        int by = rand() % data.y;
+
+        if (board.map[bx][by] == block && board.LuckyBoxes[bx][by] == 0) {
+            board.LuckyBoxes[bx][by] = 1;
+            board.map[bx][by] = box_char;
+            boxPlaced++;
+            CharactersCount++;
+        }
+    }
+
+            if (CharactersCount == CharactersSum) {
+                ok = 1;
+                break;
+            }
+        }
+
+        if (!ok) {
+            printf("!ERROR!\n(Values not optimal)\nPlease re-enter\n");
+            data.rcount = RHGetter('R', data, 0);
+            data.hcount = RHGetter('H', data, data.rcount);
+            printf("\n=== LUCKY BOXES ===\n");
+            printf("Please enter the number of lucky boxes:\n");
+            scanf("%d", &data.boxcount);
         }
     }
 
@@ -403,6 +912,11 @@ int main () {
     int TempWallErrorTimer = 0;
     int TempWallLimitTimer = 0;
     int EndTimer = 0;
+
+    int BoxMessageTimer = 0;
+    char BoxMessage[100] = "";
+
+
     float HunterDelay=0.0f;
     int screenW = data.y * CELL;
     int screenH = data.x * CELL;
@@ -436,6 +950,10 @@ int main () {
         }
     }
     data.turn ='R';
+
+    int extraTurn = 0;
+
+
     while (End) {
         if (WindowShouldClose()) {
             End = 0;
@@ -520,11 +1038,17 @@ int main () {
                         if (board.map[newrx][newry]== Runner_Ch) valid = 0;
                     }
                     if (valid || NoMovement) {
+
+                        int old_x = runnerx;
+                        int old_y = runnery;
+
                         board.map[runnerx][runnery] = block;
                         board.IsRunner[runnerx][runnery] = 0;
                         runnerx = newrx;
                         runnery = newry;
-                        board.map[runnerx][runnery] = Runner_Ch;
+
+
+                        /*board.map[runnerx][runnery] = Runner_Ch;
                         board.IsRunner[runnerx][runnery] = 1;
                         runner[data.CurrentRunner].L.x = runnerx;
                         runner[data.CurrentRunner].L.y = runnery;
@@ -544,7 +1068,57 @@ int main () {
             data.game = GameState(&board,&data,runner,hunter);
             if (HunterDelay > 0) {
                 HunterDelay -= GetFrameTime();
+            }*/
+                        if (board.LuckyBoxes[runnerx][runnery] == 1 && !NoMovement) {
+                            board.LuckyBoxes[runnerx][runnery] = 0;
+                            board.map[runnerx][runnery] = Runner_Ch;
+                            board.IsRunner[runnerx][runnery] = 1;
+                            runner[data.CurrentRunner].L.x = runnerx;
+                            runner[data.CurrentRunner].L.y = runnery;
+
+                            int boxResult = ActivateLuckyBox(runner, hunter, &board, &data,
+                                                             visited, &extraTurn,
+                                                             data.CurrentRunner,
+                                                             screenW, screenH, CELL, WALL_THICK,
+                                                             BoxMessage, &BoxMessageTimer);
+
+                            if (boxResult == 1) {
+                                // نوبت مجدد - CurrentRunner تغییر نمیکنه
+                            } else {
+                                data.CurrentRunner++;
+                            }
+                        } else {
+                            board.map[runnerx][runnery] = Runner_Ch;
+                            board.IsRunner[runnerx][runnery] = 1;
+                            runner[data.CurrentRunner].L.x = runnerx;
+                            runner[data.CurrentRunner].L.y = runnery;
+                            data.CurrentRunner++;
+                        }
+                        // ======================================
+
+                        if (data.CurrentRunner == data.rcount) {
+                            if (!extraTurn) {
+                                data.CurrentRunner = 0;
+                                data.turn = 'H';
+                                HunterDelay = 0.5f;
+                            } else {
+                                data.CurrentRunner = 0;
+                                extraTurn = 0;  // نوبت مجدد تموم شد
+                            }
+                        }
+                    }
+                    else {
+                        MoveErrorTimer=60 ;
+                    }
+                }
             }
+        }
+
+        data.game = GameState(&board,&data,runner,hunter);
+
+        if (HunterDelay > 0) {
+            HunterDelay -= GetFrameTime();
+        }
 
             if (data.turn=='H' && !data.game && HunterDelay<=0) {
                 hunterx = hunter[data.CurrentHunter].L.x;
@@ -575,14 +1149,17 @@ int main () {
                     data.CurrentHunter = 0;
                     data.turn='R';
                     //کم کردن یک دور از عمر دیوار موقت
-                    for (int i = 0; i < data.x; i++) {
+                   /* for (int i = 0; i < data.x; i++) {
                         for (int j = 0; j < data.y; j++) {
                             if (board.tempWalls.h[i][j]>0)
                                 board.tempWalls.h[i][j]--;
                             if (board.tempWalls.v[i][j]>0)
                                 board.tempWalls.v[i][j]--;
                         }
-                    }
+                    }*/
+
+                    DecreaseTempWalls(&board, data);
+
                 }
             }
             data.game = GameState(&board,&data,runner,hunter);
@@ -635,6 +1212,19 @@ int main () {
                 }
             }
         }
+
+
+        for (int i = 0; i < data.x; i++) {
+            for (int j = 0; j < data.y; j++) {
+                if (board.LuckyBoxes[i][j] == 1) {
+                    int pad = WALL_THICK / 2;
+                    DrawRectangle(j*CELL + pad, i*CELL + pad,
+                                  CELL - WALL_THICK, CELL - WALL_THICK, PURPLE);
+                    DrawText("?", j*CELL + CELL/2 - 10, i*CELL + CELL/2 - 10, 20, WHITE);
+                }
+            }
+        }
+
 
         if (MWall.Active) {
             DrawRectangleLines(MWall.sely*CELL, MWall.selx*CELL, CELL, CELL, GREEN);
@@ -690,6 +1280,25 @@ int main () {
             DrawText("You can't put a wall here!", 10, 10, 20, RED);
             TempWallErrorTimer--;
         }
+
+        if (BoxMessageTimer > 0) {
+            DrawText(BoxMessage, screenW/2 - MeasureText(BoxMessage, 30)/2,
+                     screenH/2 - 50, 30, PURPLE);
+            BoxMessageTimer--;
+        }
+
+
+        char status[100];
+        if (data.turn == 'R') {
+            sprintf(status, "Runner %d's turn %s", data.CurrentRunner + 1,
+                    extraTurn ? "(EXTRA!)" : "");
+            DrawText(status, 10, screenH - 30, 20, BLUE);
+        } else {
+            sprintf(status, "Hunter's Turn");
+            DrawText(status, 10, screenH - 30, 20, RED);
+        }
+
+
         if (data.game && EndTimer==0) {
             EndTimer=180;
         }
@@ -717,4 +1326,8 @@ int main () {
         }
         EndDrawing();
     }
+
+    CloseWindow();
+    return 0;
+
 }
