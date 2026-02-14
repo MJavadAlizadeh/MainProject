@@ -401,6 +401,7 @@ int main () {
     const int WALL_THICK = 4;
     int MoveErrorTimer = 0 ;
     int TempWallErrorTimer = 0;
+    int TempWallLimitTimer = 0;
     int EndTimer = 0;
     float HunterDelay=0.0f;
     int screenW = data.y * CELL;
@@ -458,21 +459,26 @@ int main () {
                 runnery = runner[data.CurrentRunner].L.y ;
                 int newrx = runnerx ;
                 int newry = runnery ;
-                if (IsKeyPressed(KEY_T) && !MWall.Active) {
-                    if (data.UsedTempWall < data.MaxTempWall) {
-                        MWall.Active = 1;
-                        MWall.selx = runnerx;
-                        MWall.sely = runnery;
+                if (IsKeyPressed(KEY_T)) {
+                    if (!MWall.Active) {
+                        if (data.UsedTempWall < data.MaxTempWall) {
+                            MWall.Active = 1;
+                            MWall.selx = runnerx;
+                            MWall.sely = runnery;
+                        }
+                        else {
+                            TempWallLimitTimer=60;
+                        }
                     }
                     else {
-                        TempWallErrorTimer=60;
+                        MWall.Active = 0;
                     }
                 }
-                if (IsKeyPressed(KEY_UP))    { newrx--; RMove = 1; }
-                if (IsKeyPressed(KEY_DOWN))  { newrx++; RMove = 1; }
-                if (IsKeyPressed(KEY_LEFT))  { newry--; RMove = 1; }
-                if (IsKeyPressed(KEY_RIGHT)) { newry++; RMove = 1; }
-                if (IsKeyPressed(KEY_SPACE)) {NoMovement = 1; RMove = 1;}
+                if (IsKeyPressed(KEY_UP) && !MWall.Active)    { newrx--; RMove = 1; }
+                if (IsKeyPressed(KEY_DOWN) && !MWall.Active)  { newrx++; RMove = 1; }
+                if (IsKeyPressed(KEY_LEFT) && !MWall.Active)  { newry--; RMove = 1; }
+                if (IsKeyPressed(KEY_RIGHT) && !MWall.Active) { newry++; RMove = 1; }
+                if (IsKeyPressed(KEY_SPACE) && !MWall.Active) {NoMovement = 1; RMove = 1;}
                 if (MWall.Active) {
                     if (IsKeyPressed(KEY_W) && MWall.selx > 0) MWall.selx--;
                     if (IsKeyPressed(KEY_S) && MWall.selx < data.x - 1) MWall.selx++;
@@ -675,6 +681,10 @@ int main () {
         if (MoveErrorTimer > 0) {
             DrawText("INVALID MOVE!", 10, 10, 20, RED);
             MoveErrorTimer--;
+        }
+        if (TempWallLimitTimer > 0) {
+            DrawText("You have run out of temporary walls!", 10, 10, 20, RED);
+            TempWallLimitTimer--;
         }
         if (TempWallErrorTimer > 0) {
             DrawText("You can't put a wall here!", 10, 10, 20, RED);
