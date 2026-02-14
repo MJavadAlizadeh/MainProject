@@ -719,7 +719,7 @@ int main () {
     int TryLimit = 500;
     while (!ok) {
         int CharactersTries = 0;
-        int CharactersSum = data.rcount + data.hcount + 1 ;
+        int CharactersSum = data.rcount + data.hcount + 1 +  data.boxcount ;
         int LDistance,RDistance;
         while (CharactersTries<TryLimit ) {
             int CharactersCount = 0;
@@ -783,19 +783,34 @@ int main () {
                     CharactersCount++;
                 }
             }
-            /*if (CharactersCount == CharactersSum) {
+
+            int boxPlaced = 0;
+            int boxTries = 0;
+            while (boxPlaced < data.boxcount && boxTries < TryLimit * 2) {
+                boxTries++;
+                int bx = rand() % data.x;
+                int by = rand() % data.y;
+
+                if (board.map[bx][by] == block && board.LuckyBoxes[bx][by] == 0) {
+                    board.LuckyBoxes[bx][by] = 1;
+                    board.map[bx][by] = box_char;
+                    boxPlaced++;
+                    CharactersCount++;
+                }
+            }
+            if (CharactersCount == CharactersSum) {
                 ok = 1;
                 break;
             }
         }
-        if (!ok) {
+        /*if (!ok) {
             printf("!EROR!\n(Your Runner and Hunter input values are not optimal for the map dimensions)\nPlease re-enter the values carefully\n");
             data.rcount = RHGetter('R',data,0);
             data.hcount = RHGetter('H',data,data.rcount);
         }
     }*/
 
-    int boxPlaced = 0;
+   /* int boxPlaced = 0;
     int boxTries = 0;
     while (boxPlaced < data.boxcount && boxTries < TryLimit * 2) {
         boxTries++;
@@ -814,7 +829,7 @@ int main () {
                 ok = 1;
                 break;
             }
-        }
+        }*/
 
         if (!ok) {
             printf("!ERROR!\n(Values not optimal)\nPlease re-enter\n");
