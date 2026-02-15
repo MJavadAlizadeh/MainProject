@@ -531,6 +531,8 @@ int main () {
     int TempWallErrorTimer = 0;
     int TempWallLimitTimer = 0;
     int EndTimer = 0;
+    int LuckyTimer=0;
+    int MsgCode = -1;
     float HunterDelay=0.0f;
     int screenW = data.y * CELL;
     int screenH = data.x * CELL;
@@ -765,14 +767,22 @@ int main () {
                                     if (luckyBox[i].state == 0) {
                                         data.CurrentRunner--;
                                         if (data.CurrentRunner<0) data.CurrentRunner = data.rcount-1;
+                                        MsgCode = 0;
+                                        LuckyTimer=60;
                                     }
                                     if (luckyBox[i].state == 1) {
                                         data.MaxTempWall += 2;
+                                        MsgCode = 1;
+                                        LuckyTimer=60;
                                     }
                                     if (luckyBox[i].state == 2) {
                                         Earthquake(data,&board,runner,hunter);
+                                        MsgCode = 2;
+                                        LuckyTimer=60;
                                     }
                                     if (luckyBox[i].state == 3) {
+                                        MsgCode = 3;
+                                        LuckyTimer=60;
                                         data.CurrentRunner--;
                                         if (data.CurrentRunner<0) data.CurrentRunner = data.rcount-1;
                                         SwapHunter.active =1;
@@ -979,6 +989,24 @@ int main () {
         if (TempWallErrorTimer > 0) {
             DrawText("You can't put a wall here!", 10, 10, 20, RED);
             TempWallErrorTimer--;
+        }
+        if (MsgCode != -1) {
+            if (MsgCode == 0) {
+                DrawText("LUCKY BOX: Extra Turn!", 10, 10, 20, RED);
+            }
+            else if (MsgCode == 1) {
+                DrawText("LUCKY BOX: +2 Walls!", 10, 10, 20, RED);
+            }
+            else if (MsgCode == 2) {
+                DrawText("LUCKY BOX: Earthquake!", 10, 10, 20, RED);
+            }
+            else if (MsgCode == 3) {
+                DrawText("LUCKY BOX: Swap Hunter!", 10, 10, 20, RED);
+            }
+            LuckyTimer--;
+            if (LuckyTimer <= 0) {
+                MsgCode = -1;
+            }
         }
         if (data.game && EndTimer==0) {
             EndTimer=180;
