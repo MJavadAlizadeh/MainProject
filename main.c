@@ -6,14 +6,11 @@
 //متغییر ها
 #define maxx 100
 #define maxy 100
-// const int maxx = 100 ;
-// const int maxy = 100 ;
 char Hunter_Ch = 'H' ;
 char Runner_Ch = 'R' ;
+char Lucky_Ch = '?' ;
 char light = 'L' ;
 char block = '.' ;
-// char V = '|' ;
-// char H = '_' ;
 
 //استراکت ها
 struct locate {
@@ -27,6 +24,12 @@ struct Runner {
 struct Hunter {
     struct locate L;
     int OnLight;
+    int OnLuckyBox;
+};
+struct LuckyBox {
+    struct locate L;
+    int active;
+    int state;
 };
 struct Wall {
     int h[maxx][maxy];
@@ -37,6 +40,7 @@ struct Board {
     struct locate light;
     int IsRunner[maxx][maxy];
     int IsHunter[maxx][maxy];
+    int IsLuckyBox[maxx][maxy];
     struct Wall walls;
     struct Wall tempWalls;
 };
@@ -47,6 +51,8 @@ struct Data {
     int CurrentHunter;
     int MaxTempWall;
     int UsedTempWall;
+    int LuckyBoxCount;
+    int UsedLuckyBox;
     int ReachedLamp;
     int DeadRunners;
     int RWin;
@@ -59,6 +65,13 @@ struct MoveWall {
     int selx,sely;
     int Orientation;
     int WallValid;
+};
+struct SwapMode {
+    int active;
+    int stage;
+    int HunterNum;
+    int DestX,DestY;
+    int valid;
 };
 
 //تابع DFS
@@ -112,7 +125,7 @@ void MapReset(struct Board *board,struct Data data,char input) {
     }
 }
 //تابع ریست ارایه های مربوط به رانر و هانتر و دیوار ها
-void RHWReset(int map[][maxy],struct Data data) {
+void CharReset(int map[][maxy],struct Data data) {
     for (int i=0 ; i<data.x ; i++ ){
         for(int j=0 ; j<data.y ; j++){
             map[i][j] = 0 ;
@@ -147,13 +160,7 @@ int RHGetter(char input,struct Data data,int MainRcount) {
         return hcount ;
     }
 }
-//تابع تشخیص پایان بازی با گرفتن مختصات 3 کاراکتر اصلی
-// int GameState(int Lx,int Ly,int Rx,int Ry,int Hx,int Hy) {
-//     if (Hx==Rx && Hy==Ry) return 2;
-//     else if (Lx==Rx && Ly==Ry) return 1;
-//     else return 0;
-// }
-
+//تشخیص برد و باخت بازی
 int GameState(struct Board *board,struct Data *data,struct Runner runner[],struct Hunter hunter[]) {
 
     for (int i=0 ; i<data->rcount ; i++) {
@@ -164,6 +171,9 @@ int GameState(struct Board *board,struct Data *data,struct Runner runner[],struc
                 data->DeadRunners++;
                 if (hunter[j].OnLight) {
                     board->map[runner[i].L.x][runner[i].L.y] = light;
+                }
+                else if (hunter[j].OnLuckyBox) {
+                    board->map[runner[i].L.x][runner[i].L.y] = Lucky_Ch;
                 }
                 else {
                     board->map[runner[i].L.x][runner[i].L.y] = Hunter_Ch;
@@ -200,6 +210,7 @@ int ClosestRunner(struct Runner runner[],int rcount,int Hx,int Hy){
     }
     return RNum;
 }
+//برسی امکان گذاشتن دیوار موقت
 int TempWallValid(struct Data data,struct Board board,struct MoveWall MWall) {
     int valid =1;
     if (MWall.Orientation == 1) {
@@ -213,6 +224,106 @@ int TempWallValid(struct Data data,struct Board board,struct MoveWall MWall) {
     else valid=0;
     return valid;
 }
+//تابع زلزله لاکی باکس
+void Earthquake(struct Data data,struct Board *board,struct Runner runner[],struct Hunter hunter[]) {
+    //حرکت رانر ها
+    for (int i =0 ; i<data.rcount ; i++) {
+        if (runner[i].alive==0)continue;
+        int Ori = rand() % 4;
+        int try=0;
+        int moved=0;
+        int x = runner[i].L.x;
+        int y = runner[i].L.y;
+        int NewX = x;
+        int NewY = y;
+        while (try<4 && !moved){
+            if (Ori==0) {
+            if (x+1<data.x && board->map[x+1][y]==block && !board->walls.h[x][y] && !board->tempWalls.h[x][y]) {NewX++;moved++;}
+
+            }
+            else if (Ori==1) {
+                if (x-1>=0 && board->map[x-1][y]==block && !board->walls.h[x-1][y] && !board->tempWalls.h[x-1][y]) {NewX--;moved++;}
+            }
+            else if (Ori==2) {
+                if (y+1<data.y && board->map[x][y+1]==block && !board->walls.v[x][y] && !board->tempWalls.v[x][y]) {NewY++;moved++;}
+            }
+            else {
+                if (y-1>=0 && board->map[x][y-1]==block && !board->walls.v[x][y-1] && !board->tempWalls.v[x][y-1]) {NewY--;moved++;}
+            }
+            if (!moved) {
+                Ori = (Ori+1) % 4;
+                try++;
+            }
+        }
+        if (moved) {
+            board->map[x][y] = block;
+            board->IsRunner[x][y] = 0;
+            runner[i].L.x = NewX;
+            runner[i].L.y = NewY;
+            board->map[NewX][NewY] = Runner_Ch;
+            board->IsRunner[NewX][NewY] = 1;
+        }
+    }
+    //حرکت هانتر ها
+    for (int i =0 ; i<data.hcount ; i++) {
+        int Ori = rand() % 4;
+        int try=0;
+        int moved=0;
+        int x = hunter[i].L.x;
+        int y = hunter[i].L.y;
+        int NewX = x;
+        int NewY = y;
+        while (try<4 && !moved){
+            if (Ori==0) {
+                if (x+1<data.x && (board->map[x+1][y]!=Runner_Ch && board->map[x+1][y]!=Hunter_Ch) && !board->walls.h[x][y] && !board->tempWalls.h[x][y]) {NewX++;moved++;}
+
+            }
+            else if (Ori==1) {
+                if (x-1>=0 && (board->map[x-1][y]!=Runner_Ch && board->map[x-1][y]!=Hunter_Ch) && !board->walls.h[x-1][y] && !board->tempWalls.h[x-1][y]) {NewX--;moved++;}
+            }
+            else if (Ori==2) {
+                if (y+1<data.y && (board->map[x][y+1]!=Runner_Ch && board->map[x][y+1]!=Hunter_Ch) && !board->walls.v[x][y] && !board->tempWalls.v[x][y]) {NewY++;moved++;}
+            }
+            else {
+                if (y-1>=0 && (board->map[x][y-1]!=Runner_Ch && board->map[x][y-1]!=Hunter_Ch) && !board->walls.v[x][y-1] && !board->tempWalls.v[x][y-1]) {NewY--;moved++;}
+            }
+            if (!moved) {
+                Ori = (Ori+1) % 4;
+                try++;
+            }
+        }
+        if (moved) {
+            if (hunter[i].OnLight) {
+                board->map[x][y] = light;
+                hunter[i].OnLight=0;
+            }
+            else if (hunter[i].OnLuckyBox) {
+                board->map[x][y] = Lucky_Ch;
+                hunter[i].OnLuckyBox=0;
+            }
+            else {board->map[x][y] = block;}
+            board->IsHunter[x][y] = 0;
+            hunter[i].L.x = NewX;
+            hunter[i].L.y = NewY;
+            board->map[NewX][NewY] = Hunter_Ch;
+            if (board->map[NewX][NewY]==light) {
+                hunter[i].OnLight=1;
+                board->map[NewX][NewY] = light;
+            }
+            if (board->map[NewX][NewY]==Lucky_Ch) {
+                hunter[i].OnLuckyBox=1;
+                board->map[NewX][NewY] = Lucky_Ch;
+            }
+            else {
+                hunter[i].OnLight=0;
+                board->IsHunter[NewX][NewY] = 1;
+            }
+        }
+    }
+}
+
+
+
 
 int main () {
     srand(time(NULL));
@@ -220,10 +331,8 @@ int main () {
     struct Data data ;
     struct Runner runner[maxx*maxy];
     struct Hunter hunter[maxx*maxy];
-    // int wallh[maxx][maxy];
-    // int wallv[maxx][maxy];
+    struct LuckyBox luckyBox[maxx*maxy];
     int visited[maxx][maxy];
-    // char map[maxx][maxy] ;
     int runnerx,runnery,hunterx,huntery ;
     //گرفتن ابعاد مپ
      printf("Please enter size of map :\n ");
@@ -233,10 +342,8 @@ int main () {
           scanf("%d %d" ,&data.x,&data.y );
      }
     //گرفتن تعداد رانر
-     // int Runner[maxx][maxy] ;
      data.rcount = RHGetter('R',data,0);
     //گرفتن تعداد هانتر
-     // int Hunter[maxx][maxy] ;
    data.hcount = RHGetter('H',data,data.rcount);
 
     //مشخص کردن خونه های هر کاراکتر در مپ
@@ -251,8 +358,9 @@ int main () {
             CharactersTries++;
             //پاکسازی ارایه برای مشخص کردن مشخصات کاراکتر ها
             MapReset(&board,data,block) ;
-            RHWReset(board.IsHunter,data) ;
-            RHWReset(board.IsRunner,data) ;
+            CharReset(board.IsHunter,data) ;
+            CharReset(board.IsRunner,data) ;
+            CharReset(board.IsLuckyBox,data) ;
             //مشخص کردن مشخصات چراغ
             board.light.x = (rand() % data.x);
             board.light.y = (rand() % data.y);
@@ -316,7 +424,30 @@ int main () {
             data.hcount = RHGetter('H',data,data.rcount);
         }
     }
-
+    //مشخص کردن خونه های لاکی باکس
+    data.LuckyBoxCount=data.rcount;
+    int placed=0;
+    int try=0;
+    while (placed<data.LuckyBoxCount && try<TryLimit) {
+        int LBx = rand() % data.x ;
+        int LBy = rand() % data.y ;
+        int ok =1;
+        if (LBx<0 || LBx>=data.x || LBy<0 || LBy>=data.y) ok=0;
+        if (board.IsRunner[LBx][LBy]==1 || board.IsHunter[LBx][LBy]==1) ok=0;
+        if (LBx == board.light.x && LBy == board.light.y) ok=0;
+        if (board.IsLuckyBox[LBx][LBy]==1) ok=0;
+        if (ok) {
+            board.IsLuckyBox[LBx][LBy] = 1;
+            board.map[LBx][LBy]=Lucky_Ch;
+            luckyBox[placed].L.x=LBx;
+            luckyBox[placed].L.y=LBy;
+            luckyBox[placed].active=1;
+            luckyBox[placed].state=-1;
+            placed++;
+        }
+        try++;
+    }
+    data.LuckyBoxCount=placed;
      int wcount ;
     printf("Please enter the number of walls:\n");
     scanf("%d",&wcount) ;
@@ -324,10 +455,10 @@ int main () {
          printf("!ERROR!\n(Invalid number of walls)\nPlease enter again:\n");
          scanf ("%d",&wcount) ;
      }
-    RHWReset(board.walls.h,data);
-    RHWReset(board.walls.v,data);
-    RHWReset(board.tempWalls.h,data);
-    RHWReset(board.tempWalls.v,data);
+    CharReset(board.walls.h,data);
+    CharReset(board.walls.v,data);
+    CharReset(board.tempWalls.h,data);
+    CharReset(board.tempWalls.v,data);
      // اجرای رندوم دیوار ها با توابع dfs  و Connected
     int Wallcounter = 0;
     int WallTries = 0;
@@ -373,10 +504,6 @@ int main () {
     if (Wallcounter < wcount) {
         printf("Warning: Only %d walls could be placed safely.\n", Wallcounter);
     }
-    // int Rx[maxx];
-    // int Ry[maxy];
-    // int Hx[maxx];
-    // int Hy[maxy];
     int num=0;
     for (int i = 0; i <data.x; i++)
         for (int j = 0; j <data.y; j++)
@@ -397,6 +524,7 @@ int main () {
             }
      //چاپ نقشه با ریلیب
     struct MoveWall MWall;
+    struct SwapMode SwapHunter;
     const int CELL = 50;
     const int WALL_THICK = 4;
     int MoveErrorTimer = 0 ;
@@ -415,6 +543,7 @@ int main () {
     data.CurrentHunter = 0;
     for (int i = 0; i < data.hcount; i++) {
         hunter[i].OnLight = 0;
+        hunter[i].OnLuckyBox = 0;
     }
     data.RWin = (data.rcount+2)/3;
     data.ReachedLamp = 0;
@@ -423,6 +552,12 @@ int main () {
     MWall.Active=0;
     MWall.WallValid=0;
     MWall.Orientation=0;
+    SwapHunter.active = 0;
+    SwapHunter.stage = 0;
+    SwapHunter.HunterNum = 0;
+    SwapHunter.DestX = 0;
+    SwapHunter.DestY = 0;
+    SwapHunter.valid = 0;
     data.MaxTempWall =1;
     data.UsedTempWall=0;
     if (data.x<data.y) {
@@ -444,6 +579,89 @@ int main () {
 
         int RMove = 0 ;
         int NoMovement = 0;
+        int ReachedLuckyBox = 0;
+        int HandleSwap = 0;
+        if (SwapHunter.active) {
+            HandleSwap = 1;
+    // مرحله‌ی انتخاب هانتر
+    if (SwapHunter.stage == 0) {
+        // حرکت در لیست هانترها
+        if (IsKeyPressed(KEY_D)) {
+            int next = SwapHunter.HunterNum;
+            do {
+                next = (next + 1) % data.hcount;
+            } while (!board.IsHunter[hunter[next].L.x][hunter[next].L.y]);
+            SwapHunter.HunterNum = next;
+            SwapHunter.DestX = hunter[next].L.x;
+            SwapHunter.DestY = hunter[next].L.y;
+        }
+        if (IsKeyPressed(KEY_A)) {
+            int prev = SwapHunter.HunterNum;
+            do {
+                prev = (prev - 1 + data.hcount) % data.hcount;
+            } while (!board.IsHunter[hunter[prev].L.x][hunter[prev].L.y]);
+            SwapHunter.HunterNum = prev;
+            SwapHunter.DestX = hunter[prev].L.x;
+            SwapHunter.DestY = hunter[prev].L.y;
+        }
+        if (IsKeyPressed(KEY_ENTER)) {
+            SwapHunter.stage = 1;
+        }
+    }
+    // انتخاب خانه ی منتقل شونده
+    else {
+        if (IsKeyPressed(KEY_W)   && SwapHunter.DestX > 0){SwapHunter.DestX--;}
+        if (IsKeyPressed(KEY_S) && SwapHunter.DestX < data.x - 1){SwapHunter.DestX++;}
+        if (IsKeyPressed(KEY_A) && SwapHunter.DestY > 0){SwapHunter.DestY--;}
+        if (IsKeyPressed(KEY_D)&& SwapHunter.DestY < data.y - 1){SwapHunter.DestY++;}
+
+        char target = board.map[SwapHunter.DestX][SwapHunter.DestY];
+        SwapHunter.valid = (target == block || target == Lucky_Ch || target == light);
+        // if (board.map[SwapHunter.DestX][SwapHunter.DestY] == block || board.map[SwapHunter.DestX][SwapHunter.DestY] == light || board.map[SwapHunter.DestX][SwapHunter.DestY] == Lucky_Ch) {
+        //     SwapHunter.valid = 1;
+        // }
+        
+        if (IsKeyPressed(KEY_ENTER) && SwapHunter.valid) {
+            int hx = hunter[SwapHunter.HunterNum].L.x;
+            int hy = hunter[SwapHunter.HunterNum].L.y;
+
+            if (hunter[SwapHunter.HunterNum].OnLight) {
+                board.map[hx][hy] = light;
+            } else if (hunter[SwapHunter.HunterNum].OnLuckyBox) {
+                board.map[hx][hy] = Lucky_Ch;
+            } else {
+                board.map[hx][hy] = block;
+            }
+            board.IsHunter[hx][hy] = 0;
+            hunter[SwapHunter.HunterNum].OnLight = 0;
+            hunter[SwapHunter.HunterNum].OnLuckyBox = 0;
+
+            char targetCell = board.map[SwapHunter.DestX][SwapHunter.DestY];
+
+            hunter[SwapHunter.HunterNum].L.x = SwapHunter.DestX;
+            hunter[SwapHunter.HunterNum].L.y = SwapHunter.DestY;
+
+            if (targetCell == light) {
+                hunter[SwapHunter.HunterNum].OnLight = 1;
+            } else if (targetCell == Lucky_Ch) {
+                hunter[SwapHunter.HunterNum].OnLuckyBox = 1;
+            }
+
+            board.map[SwapHunter.DestX][SwapHunter.DestY] = Hunter_Ch;
+            board.IsHunter[SwapHunter.DestX][SwapHunter.DestY] = 1;
+
+            SwapHunter.active = 0;
+            SwapHunter.stage = 0;
+
+            data.CurrentRunner++;
+            if (data.CurrentRunner >= data.rcount) {
+                data.CurrentRunner = 0;
+                data.turn = 'H';
+                HunterDelay = 0.5f;
+            }
+        }
+    }
+}
         if (data.turn == 'R' && !data.game) {
             while (data.CurrentRunner<data.rcount && runner[data.CurrentRunner].alive==0) {
                 data.CurrentRunner++;
@@ -454,7 +672,9 @@ int main () {
                     break;
                 }
             }
-            if (data.turn == 'R' && runner[data.CurrentRunner].alive==1) {
+
+
+            if (data.turn == 'R' && runner[data.CurrentRunner].alive==1 && !HandleSwap) {
                 runnerx = runner[data.CurrentRunner].L.x ;
                 runnery = runner[data.CurrentRunner].L.y ;
                 int newrx = runnerx ;
@@ -524,11 +744,49 @@ int main () {
                         board.IsRunner[runnerx][runnery] = 0;
                         runnerx = newrx;
                         runnery = newry;
+                        if (board.map[runnerx][runnery] == Lucky_Ch) {
+                            ReachedLuckyBox =1;
+                            board.IsLuckyBox[runnerx][runnery] = 0;
+                            data.UsedLuckyBox++;
+                        }
                         board.map[runnerx][runnery] = Runner_Ch;
                         board.IsRunner[runnerx][runnery] = 1;
                         runner[data.CurrentRunner].L.x = runnerx;
                         runner[data.CurrentRunner].L.y = runnery;
                         data.CurrentRunner++;
+                        //اعمال لاکی باکس
+                        if (ReachedLuckyBox) {
+                            for (int i=0;i<data.LuckyBoxCount;i++) {
+                                if (luckyBox[i].active && luckyBox[i].L.x == runnerx && luckyBox[i].L.y == runnery) {
+                                    luckyBox[i].active = 0;
+                                    luckyBox[i].state = 3;
+                                }
+                                if (luckyBox[i].state!=-1) {
+                                    if (luckyBox[i].state == 0) {
+                                        data.CurrentRunner--;
+                                        if (data.CurrentRunner<0) data.CurrentRunner = data.rcount-1;
+                                    }
+                                    if (luckyBox[i].state == 1) {
+                                        data.MaxTempWall += 2;
+                                    }
+                                    if (luckyBox[i].state == 2) {
+                                        Earthquake(data,&board,runner,hunter);
+                                    }
+                                    if (luckyBox[i].state == 3) {
+                                        data.CurrentRunner--;
+                                        if (data.CurrentRunner<0) data.CurrentRunner = data.rcount-1;
+                                        SwapHunter.active =1;
+                                        SwapHunter.stage =0;
+                                        SwapHunter.HunterNum=0;
+                                        SwapHunter.valid=0;
+                                        SwapHunter.DestX = hunter[0].L.x;
+                                        SwapHunter.DestY = hunter[0].L.y;
+                                    }
+                                    luckyBox[i].state = -1;
+                                    break;
+                                }
+                            }
+                        }
                         if (data.CurrentRunner==data.rcount) {
                             data.CurrentRunner = 0;
                             data.turn='H';
@@ -561,8 +819,13 @@ int main () {
                     board.map[hunterx][huntery] = light;
                     hunter[data.CurrentHunter].OnLight = 0;
                 }
-                else board.map[hunterx][huntery] = block;
+                else if (hunter[data.CurrentHunter].OnLuckyBox) {
+                    board.map[hunterx][huntery] = Lucky_Ch;
+                    hunter[data.CurrentHunter].OnLuckyBox = 0;
+                }
+                else {board.map[hunterx][huntery] = block;}
                 if (board.map[newhx][newhy]==light){hunter[data.CurrentHunter].OnLight = 1;}
+                if (board.map[newhx][newhy]==Lucky_Ch){hunter[data.CurrentHunter].OnLuckyBox = 1;}
                 board.IsHunter[hunterx][huntery]=0;
                 hunterx = newhx;
                 huntery = newhy;
@@ -594,9 +857,6 @@ int main () {
             for (int j = 0; j < data.y; j++) {
                 Color bg = WHITE;
                 char ch = board.map[i][j];
-                // if (ch == Runner_Ch || ch == Hunter_Ch || ch == light) {
-                //     bg = WHITE;
-                // }
                 DrawRectangle(j*CELL, i*CELL, CELL, CELL, bg);
             }
         }
@@ -618,7 +878,7 @@ int main () {
                               WALL_THICK, CELL, lineColor);
             }
         }
-        //az in
+        //چاپ دیوار موقت
         for (int i = 0; i < data.x - 1; i++) {
             for (int j = 0; j < data.y; j++) {
                 if (board.tempWalls.h[i][j] > 0) {
@@ -657,12 +917,20 @@ int main () {
                 }
             }
         }
-
+        if (SwapHunter.active) {
+            if (SwapHunter.stage == 0) {
+                int hx = hunter[SwapHunter.HunterNum].L.y;
+                int hy = hunter[SwapHunter.HunterNum].L.x;
+                DrawRectangleLines(hx*CELL, hy*CELL, CELL, CELL, YELLOW);
+            } else {
+                Color c = SwapHunter.valid ? GREEN : RED;
+                DrawRectangleLines(SwapHunter.DestY*CELL, SwapHunter.DestX*CELL, CELL, CELL, c);
+            }
+        }
 
 
         for (int i = 0; i < data.x; i++) {
             for (int j = 0; j < data.y; j++) {
-                // char ch = board.map[i][j];
                 if (board.map[i][j] == Runner_Ch) {
                     if (runner[data.CurrentRunner].L.x == i && runner[data.CurrentRunner].L.y == j) {
                         DrawCircle(j*CELL + CELL/2, i*CELL + CELL/2, CELL/3, GREEN);
@@ -674,7 +942,11 @@ int main () {
                 } else if (board.map[i][j] == light) {
                     int pad = WALL_THICK / 2;
                     DrawRectangle(j*CELL + pad , i*CELL + pad , CELL - WALL_THICK , CELL - WALL_THICK, YELLOW);
+                }else if (board.map[i][j] == Lucky_Ch) {
+                    DrawRectangleRounded((Rectangle){j*CELL + WALL_THICK/2.0f, i*CELL + WALL_THICK/2.0f, CELL - WALL_THICK, CELL - WALL_THICK}, 0.18f, 8, GOLD);
+                    DrawText("?", j*CELL + CELL/2 - MeasureText("?", CELL/2)/2, i*CELL + CELL/2 - (CELL/2)/2, CELL/2, WHITE);
                 }
+
             }
         }
 
