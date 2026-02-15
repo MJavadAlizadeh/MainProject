@@ -616,10 +616,10 @@ int main () {
         if (IsKeyPressed(KEY_D)&& SwapHunter.DestY < data.y - 1){SwapHunter.DestY++;}
 
         char target = board.map[SwapHunter.DestX][SwapHunter.DestY];
-        SwapHunter.valid = (target == block || target == Lucky_Ch || target == light);
-        // if (board.map[SwapHunter.DestX][SwapHunter.DestY] == block || board.map[SwapHunter.DestX][SwapHunter.DestY] == light || board.map[SwapHunter.DestX][SwapHunter.DestY] == Lucky_Ch) {
-        //     SwapHunter.valid = 1;
-        // }
+        if (target == block || target == Lucky_Ch || target == light) {
+            SwapHunter.valid = 1;
+        }
+        else{SwapHunter.valid = 0;}
         
         if (IsKeyPressed(KEY_ENTER) && SwapHunter.valid) {
             int hx = hunter[SwapHunter.HunterNum].L.x;
@@ -759,7 +759,7 @@ int main () {
                             for (int i=0;i<data.LuckyBoxCount;i++) {
                                 if (luckyBox[i].active && luckyBox[i].L.x == runnerx && luckyBox[i].L.y == runnery) {
                                     luckyBox[i].active = 0;
-                                    luckyBox[i].state = 3;
+                                    luckyBox[i].state = rand()%4;
                                 }
                                 if (luckyBox[i].state!=-1) {
                                     if (luckyBox[i].state == 0) {
