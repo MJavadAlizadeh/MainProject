@@ -921,7 +921,7 @@ int main () {
             if (SwapHunter.stage == 0) {
                 int hx = hunter[SwapHunter.HunterNum].L.y;
                 int hy = hunter[SwapHunter.HunterNum].L.x;
-                DrawRectangleLines(hx*CELL, hy*CELL, CELL, CELL, YELLOW);
+                DrawRectangleLines(hx*CELL, hy*CELL, CELL, CELL, GOLD);
             } else {
                 Color c = SwapHunter.valid ? GREEN : RED;
                 DrawRectangleLines(SwapHunter.DestY*CELL, SwapHunter.DestX*CELL, CELL, CELL, c);
@@ -938,6 +938,24 @@ int main () {
                     else
                     DrawCircle(j*CELL + CELL/2, i*CELL + CELL/2, CELL/3, BLUE);
                 } else if (board.map[i][j] == Hunter_Ch) {
+                    int onLight = 0;
+                    int onLucky = 0;
+                    //بررسی تداخل با لایت و لاکی باکس
+                    for(int k=0; k<data.hcount; k++) {
+                        if(hunter[k].L.x == i && hunter[k].L.y == j) {
+                            if(hunter[k].OnLight) onLight = 1;
+                            if(hunter[k].OnLuckyBox) onLucky = 1;
+                            break;
+                        }
+                    }
+                    if (onLight) {
+                        int pad = WALL_THICK / 2;
+                        DrawRectangle(j*CELL + pad , i*CELL + pad , CELL - WALL_THICK , CELL - WALL_THICK, YELLOW);
+                    }
+                    else if (onLucky) {
+                        DrawRectangleRounded((Rectangle){j*CELL + WALL_THICK/2.0f, i*CELL + WALL_THICK/2.0f, CELL - WALL_THICK, CELL - WALL_THICK}, 0.18f, 8, GOLD);
+                        DrawText("?", j*CELL + CELL/2 - MeasureText("?", CELL/2)/2, i*CELL + CELL/2 - (CELL/2)/2, CELL/2, WHITE);
+                    }
                     DrawCircle(j*CELL + CELL/2, i*CELL + CELL/2, CELL/3, RED);
                 } else if (board.map[i][j] == light) {
                     int pad = WALL_THICK / 2;
