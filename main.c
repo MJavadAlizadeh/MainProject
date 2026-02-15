@@ -321,8 +321,109 @@ void Earthquake(struct Data data,struct Board *board,struct Runner runner[],stru
         }
     }
 }
+//تابع ذخیره بازی
+void SaveGame(struct Data data, struct Board board, struct Runner runners[], struct Hunter hunters[], struct LuckyBox boxes[]) {
+    FILE *fp = fopen("saved_game.txt", "w");
+    if (fp == NULL) return;
+    fprintf(fp, "%d %d\n", data.x, data.y);
+    fprintf(fp, "%d %d\n", data.rcount, data.hcount);
+    fprintf(fp, "%d %d\n", data.CurrentRunner, data.CurrentHunter);
+    fprintf(fp, "%d %d\n", data.MaxTempWall, data.UsedTempWall);
+    fprintf(fp, "%d %d\n", data.LuckyBoxCount, data.UsedLuckyBox);
+    fprintf(fp, "%d %d\n", data.ReachedLamp, data.DeadRunners);
+    fprintf(fp, "%d %d\n", data.RWin, data.game);
+    fprintf(fp, "%d\n", (int)data.turn);
 
+    for(int i=0; i<data.x; i++) {
+        for(int j=0; j<data.y; j++) {
+            fprintf(fp, "%d ", (int)board.map[i][j]);
+        }
+        fprintf(fp, "\n");
+    }
 
+    fprintf(fp, "%d %d\n", board.light.x, board.light.y);
+
+    for(int i=0; i<data.x; i++) {
+        for(int j=0; j<data.y; j++) {
+            fprintf(fp, "%d %d %d %d ", board.walls.h[i][j], board.walls.v[i][j], board.tempWalls.h[i][j], board.tempWalls.v[i][j]);
+        }
+        fprintf(fp, "\n");
+    }
+    for(int i=0; i<data.x; i++) {
+        for(int j=0; j<data.y; j++) {
+            fprintf(fp, "%d %d %d ", board.IsRunner[i][j], board.IsHunter[i][j], board.IsLuckyBox[i][j]);
+        }
+        fprintf(fp, "\n");
+    }
+
+    for(int i=0; i<data.rcount; i++) {
+        fprintf(fp, "%d %d %d %d\n", runners[i].L.x, runners[i].L.y, runners[i].alive, runners[i].reached);
+    }
+
+    for(int i=0; i<data.hcount; i++) {
+        fprintf(fp, "%d %d %d %d\n", hunters[i].L.x, hunters[i].L.y, hunters[i].OnLight, hunters[i].OnLuckyBox);
+    }
+
+    for(int i=0; i<data.LuckyBoxCount; i++) {
+        fprintf(fp, "%d %d %d %d\n", boxes[i].L.x, boxes[i].L.y, boxes[i].active, boxes[i].state);
+    }
+
+    fclose(fp);
+}
+// تابع لود بازی
+int LoadGame(struct Data *data, struct Board *board, struct Runner runners[], struct Hunter hunters[], struct LuckyBox boxes[]) {
+    FILE *fp = fopen("saved_game.txt", "r");
+    if (fp == NULL) return 0;
+
+    fscanf(fp, "%d %d", &data->x, &data->y);
+    fscanf(fp, "%d %d", &data->rcount, &data->hcount);
+    fscanf(fp, "%d %d", &data->CurrentRunner, &data->CurrentHunter);
+    fscanf(fp, "%d %d", &data->MaxTempWall, &data->UsedTempWall);
+    fscanf(fp, "%d %d", &data->LuckyBoxCount, &data->UsedLuckyBox);
+    fscanf(fp, "%d %d", &data->ReachedLamp, &data->DeadRunners);
+    fscanf(fp, "%d %d", &data->RWin, &data->game);
+
+    int tempTurn;
+    fscanf(fp, "%d", &tempTurn);
+    data->turn = (char)tempTurn;
+
+    for(int i=0; i<data->x; i++) {
+        for(int j=0; j<data->y; j++) {
+            int tempChar;
+            fscanf(fp, "%d", &tempChar);
+            board->map[i][j] = (char)tempChar;
+        }
+    }
+
+    fscanf(fp, "%d %d", &board->light.x, &board->light.y);
+
+    for(int i=0; i<data->x; i++) {
+        for(int j=0; j<data->y; j++) {
+            fscanf(fp, "%d %d %d %d", &board->walls.h[i][j], &board->walls.v[i][j], &board->tempWalls.h[i][j], &board->tempWalls.v[i][j]);
+        }
+    }
+
+    for(int i=0; i<data->x; i++) {
+        for(int j=0; j<data->y; j++) {
+            fscanf(fp, "%d %d %d", &board->IsRunner[i][j], &board->IsHunter[i][j], &board->IsLuckyBox[i][j]);
+        }
+    }
+
+    for(int i=0; i<data->rcount; i++) {
+        fscanf(fp, "%d %d %d %d", &runners[i].L.x, &runners[i].L.y, &runners[i].alive, &runners[i].reached);
+    }
+
+    for(int i=0; i<data->hcount; i++) {
+        fscanf(fp, "%d %d %d %d", &hunters[i].L.x, &hunters[i].L.y, &hunters[i].OnLight, &hunters[i].OnLuckyBox);
+    }
+
+    for(int i=0; i<data->LuckyBoxCount; i++) {
+        fscanf(fp, "%d %d %d %d", &boxes[i].L.x, &boxes[i].L.y, &boxes[i].active, &boxes[i].state);
+    }
+
+    fclose(fp);
+    return 1;
+}
 
 
 int main () {
@@ -533,6 +634,8 @@ int main () {
     int EndTimer = 0;
     int LuckyTimer=0;
     int MsgCode = -1;
+    int SaveTimer = 0;
+    int LoadTimer = 0;
     float HunterDelay=0.0f;
     int screenW = data.y * CELL;
     int screenH = data.x * CELL;
@@ -577,6 +680,20 @@ int main () {
         if (WindowShouldClose()) {
             End = 0;
             break;
+        }
+        if ((IsKeyDown(KEY_LEFT_CONTROL)) && IsKeyPressed(KEY_S)) {
+            SaveGame(data, board, runner, hunter, luckyBox);
+            SaveTimer=60;
+        }
+        if ((IsKeyDown(KEY_LEFT_CONTROL)) && IsKeyPressed(KEY_L)) {
+            int success = LoadGame(&data, &board, runner, hunter, luckyBox);
+            if(success) {
+                screenW = data.y * CELL;
+                screenH = data.x * CELL;
+                SetWindowSize(screenW, screenH);
+                LoadTimer=60;
+                continue;
+            }
         }
 
         int RMove = 0 ;
@@ -1007,6 +1124,14 @@ int main () {
             if (LuckyTimer <= 0) {
                 MsgCode = -1;
             }
+        }
+        if (SaveTimer > 0) {
+            DrawText("Game Saved!", 10, 10, 20, RED);
+            SaveTimer--;
+        }
+        if (LoadTimer > 0) {
+            DrawText("Game Loaded!", 10, 10, 20, RED);
+            LoadTimer--;
         }
         if (data.game && EndTimer==0) {
             EndTimer=180;
